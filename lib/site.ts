@@ -21,6 +21,7 @@ export const site = {
 export const nav = [
   { href: "/legis", label: "Início" },
   { href: "/legis/proposicoes", label: "Proposições" },
+  { href: "/legis/partidos", label: "Partidos" },
   { href: "/legis/agenda", label: "Agenda" },
   { href: "/radar", label: "Radar" },
 ] as const;

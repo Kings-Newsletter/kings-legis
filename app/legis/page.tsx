@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Agenda } from "@/components/home/agenda";
-import { Hemiciclo } from "@/components/home/hemiciclo";
 import { MapaEstados } from "@/components/home/mapa-estados";
+import { ResumoCongresso } from "@/components/home/resumo-congresso";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -49,7 +49,7 @@ export default function LegisHome() {
             </button>
           </form>
         </div>
-        <Hemiciclo />
+        <ResumoCongresso />
       </section>
 
       <section aria-label="O Congresso em números" className="numeros">
