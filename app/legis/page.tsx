@@ -15,6 +15,13 @@ export const metadata: Metadata = {
 
 const etapas = ["Apresentada", "Comissões", "Plenário · 1ª Casa", "2ª Casa", "Sanção", "Lei"];
 
+const numeros = [
+  { valor: "513", rotulo: "deputados federais" },
+  { valor: "81", rotulo: "senadores" },
+  { valor: "27", rotulo: "unidades da federação" },
+  { valor: "21", rotulo: "partidos com deputados" },
+];
+
 const radar = [
   { fonte: "Diário Oficial da União", texto: "Leis, decretos, medidas provisórias e nomeações do dia." },
   { fonte: "STF", texto: "Pauta do plenário e o que está em julgamento." },
@@ -43,6 +50,15 @@ export default function LegisHome() {
           </form>
         </div>
         <Hemiciclo />
+      </section>
+
+      <section aria-label="O Congresso em números" className="numeros">
+        {numeros.map((n) => (
+          <div key={n.rotulo} className="numero">
+            <p className="numero-valor">{n.valor}</p>
+            <p className="numero-rotulo">{n.rotulo}</p>
+          </div>
+        ))}
       </section>
 
       <section className="duas-colunas">

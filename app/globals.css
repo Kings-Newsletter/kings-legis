@@ -231,25 +231,28 @@ p {
   align-items: center;
 }
 
-.faixa-hoje {
+.faixa-atualizacao {
   background: var(--ink);
   color: #cfe1e6;
   font-size: 0.8125rem;
 }
 
-.faixa-hoje-linha {
+.faixa-linha {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   gap: 4px 16px;
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.faixa-rotulo {
-  font-weight: 700;
+.faixa-atualizacao strong {
+  color: #ffffff;
+}
+
+.faixa-atualizacao a {
   color: var(--cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 /* --------------------------------------------------------------- Cards */
@@ -666,4 +669,109 @@ p {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+}
+
+/* ------------------------------------------------- Números do Congresso */
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.numero {
+  padding: 20px 4px;
+}
+
+.numero + .numero {
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+}
+
+.numero-valor {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(2.5rem, 1.8rem + 2.4vw, 3.75rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.numero-rotulo {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+@media (max-width: 640px) {
+  .numero + .numero {
+    border-left: 0;
+    padding-left: 4px;
+  }
+}
+
+/* ----------------------------------------- Legenda do mapa e regiões */
+
+.legenda-faixas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.legenda-faixas li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legenda-faixas span {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.regioes-lista {
+  list-style: none;
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--ink-line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.regioes-lista li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.regioes-num {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  min-width: 28px;
+  color: var(--cyan);
+}
+
+.regioes-ufs {
+  color: var(--ink-muted);
+  font-size: 0.8125rem;
+}
+
+.fontes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DATA_CONSULTA } from "@/lib/bancadas";
 import { nav, site } from "@/lib/site";
 
 export function SiteHeader() {
@@ -29,10 +30,12 @@ export function SiteHeader() {
           </a>
         </div>
       </div>
-      <div className="faixa-hoje">
-        <div className="container faixa-hoje-linha">
-          <span className="faixa-rotulo">Hoje</span>
-          <span>Câmara, Senado e Diário Oficial do dia aparecem aqui quando a coleta estiver ligada.</span>
+      <div className="faixa-atualizacao">
+        <div className="container faixa-linha">
+          <span>
+            Dados oficiais da Câmara e do Senado, consulta em <strong>{DATA_CONSULTA}</strong>
+          </span>
+          <Link href="/legis/como-atualizamos">Como atualizamos</Link>
         </div>
       </div>
     </header>
