@@ -6,8 +6,8 @@
  * - Câmara: /api/v2/deputados (deputados em exercício), contados por siglaPartido e siglaUf.
  * - Senado: /dadosabertos/senador/lista/atual.json, contados por SiglaPartidoParlamentar.
  *
- * Cores frias e neutras, sem as cores oficiais dos partidos. Ordem por tamanho da
- * bancada, nunca por posição ideológica.
+ * Cada partido com a sua cor. Ordem por tamanho da bancada, nunca por posição
+ * ideológica.
  */
 
 export const DATA_CONSULTA = "15/11/2026";
@@ -20,22 +20,42 @@ export interface Grupo {
   cor: string;
 }
 
-const PALETA = [
-  "#1f4e79", "#3f8fa8", "#8cc5cc", "#2b6f62", "#7ea6d8",
-  "#4a5fa8", "#a9b4dc", "#2f8f84", "#bcd9e8", "#5d6f86",
-];
-const COR_DEMAIS = "#c9d2dc";
+/**
+ * Cor de cada partido, aproximada da identidade visual (logo e material oficial) de
+ * cada um. Não há tabela oficial de cores no TSE: ajuste aqui se algum tom estiver
+ * diferente do que o partido usa.
+ */
+export const COR_PARTIDO: Record<string, string> = {
+  PL: "#1b3f8b",
+  PT: "#cc0000",
+  "UNIÃO": "#2ba3d8",
+  PSD: "#f2a900",
+  PP: "#2f7fc1",
+  REPUBLICANOS: "#12558a",
+  MDB: "#2e9b4e",
+  PODE: "#7cc242",
+  PSB: "#ffd84d",
+  PSDB: "#8fc3ea",
+  PSOL: "#f4b400",
+  PCdoB: "#a30d11",
+  PDT: "#e05b5b",
+  PV: "#00a651",
+  AVANTE: "#8a63b8",
+  NOVO: "#f47920",
+  SOLIDARIEDADE: "#e65100",
+  PRD: "#335c99",
+  REDE: "#00a39a",
+  CIDADANIA: "#e6007e",
+  "MISSÃO": "#9aa5b1",
+  "S/Partido": "#b0b8c1",
+};
+const COR_SEM_DADO = "#c9d2dc";
 
-/** Os maiores ganham cor própria; os demais viram um grupo só. */
-function montar(contagem: Record<string, number>, comCor: number) {
+/** Todos os partidos com a própria cor, do maior para o menor. */
+function montar(contagem: Record<string, number>) {
   const ordenado = Object.entries(contagem).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  const principais = ordenado.slice(0, comCor);
-  const demais = ordenado.slice(comCor);
-  const grupos: Grupo[] = principais.map(([sigla, n], i) => ({ sigla, n, cor: PALETA[i % PALETA.length]! }));
-  if (demais.length) {
-    grupos.push({ sigla: "Demais", n: demais.reduce((s, [, n]) => s + n, 0), cor: COR_DEMAIS });
-  }
-  return { grupos, demais, total: ordenado.reduce((s, [, n]) => s + n, 0) };
+  const grupos: Grupo[] = ordenado.map(([sigla, n]) => ({ sigla, n, cor: COR_PARTIDO[sigla] ?? COR_SEM_DADO }));
+  return { grupos, total: ordenado.reduce((s, [, n]) => s + n, 0) };
 }
 
 const CAMARA = {
@@ -50,8 +70,8 @@ const SENADO = {
 };
 
 export const COMPOSICAO: Record<Casa, ReturnType<typeof montar> & { nome: string; fileiras: number; maioria: string }> = {
-  camara: { ...montar(CAMARA, 10), nome: "Câmara dos Deputados", fileiras: 12, maioria: "Maioria simples: 257 · PEC: 308" },
-  senado: { ...montar(SENADO, 10), nome: "Senado Federal", fileiras: 5, maioria: "Maioria simples: 41 · PEC: 49" },
+  camara: { ...montar(CAMARA), nome: "Câmara dos Deputados", fileiras: 12, maioria: "Maioria simples: 257 · PEC: 308" },
+  senado: { ...montar(SENADO), nome: "Senado Federal", fileiras: 5, maioria: "Maioria simples: 41 · PEC: 49" },
 };
 
 /** Deputados federais em exercício por UF. */

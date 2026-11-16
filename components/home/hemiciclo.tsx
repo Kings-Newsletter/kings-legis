@@ -86,7 +86,7 @@ export function Hemiciclo() {
           {grupo ? grupo.n : dados.total}
         </text>
         <text x={250} y={250} textAnchor="middle" className="hemiciclo-txt">
-          {grupo ? `${grupo.sigla === "Demais" ? "demais partidos" : grupo.sigla} · ${pct(grupo.n)}%` : "toque num partido"}
+          {grupo ? `${grupo.sigla} · ${pct(grupo.n)}%` : "toque num partido"}
         </text>
       </svg>
 
@@ -110,9 +110,7 @@ export function Hemiciclo() {
       </ul>
 
       <p className="muted small">
-        {dados.maioria}. Ordem por tamanho da bancada, sem classificação ideológica; as cores não
-        são as dos partidos.
-        {dados.demais.length > 0 && <> Demais: {dados.demais.map(([s, n]) => `${s} ${n}`).join(", ")}.</>} Fonte:{" "}
+        {dados.maioria}. Ordem por tamanho da bancada, sem classificação ideológica. Fonte:{" "}
         {casa === "camara" ? "Câmara dos Deputados" : "Senado Federal"}, dados abertos, consulta em {DATA_CONSULTA}.
       </p>
     </article>
