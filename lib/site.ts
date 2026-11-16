@@ -19,7 +19,7 @@ export const site = {
 } as const;
 
 export const nav = [
-  { href: "/legis", label: "Legis" },
+  { href: "/legis", label: "Início" },
   { href: "/legis/proposicoes", label: "Proposições" },
   { href: "/legis/agenda", label: "Agenda" },
   { href: "/radar", label: "Radar" },

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function Proposicoes() {
   return (
-    <>
+    <div className="container pagina">
       <span className="eyebrow">King&apos;s Legis</span>
       <h1>Proposições</h1>
       <p className="lead">
@@ -27,6 +27,6 @@ export default function Proposicoes() {
       <p className="notice">
         Em construção. A lista com filtros entra quando a coleta da Câmara estiver ligada.
       </p>
-    </>
+    </div>
   );
 }

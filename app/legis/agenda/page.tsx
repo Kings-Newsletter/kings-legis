@@ -10,13 +10,13 @@ export const metadata: Metadata = {
 
 export default function Agenda() {
   return (
-    <>
+    <div className="container pagina">
       <span className="eyebrow">King&apos;s Legis</span>
       <h1>Pauta da semana</h1>
       <p className="lead">O que o plenário e as comissões vão analisar, dia a dia.</p>
       <p className="notice">
         Em construção. A agenda entra junto com a coleta da Câmara e do Senado.
       </p>
-    </>
+    </div>
   );
 }

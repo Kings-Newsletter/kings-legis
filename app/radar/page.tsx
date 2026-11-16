@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function RadarHome() {
   return (
-    <>
+    <div className="container pagina">
       <span className="eyebrow">King&apos;s Radar</span>
       <h1>O que foi publicado hoje</h1>
       <p className="lead">
@@ -20,6 +20,6 @@ export default function RadarHome() {
       <p className="notice">
         Em construção. O Radar entra depois do Legis, começando pelo Diário Oficial da União.
       </p>
-    </>
+    </div>
   );
 }

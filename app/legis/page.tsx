@@ -1,58 +1,95 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Agenda } from "@/components/home/agenda";
+import { Hemiciclo } from "@/components/home/hemiciclo";
+import { MapaEstados } from "@/components/home/mapa-estados";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Legislativo",
+  title: "O que o Congresso decidiu, em linguagem clara",
   description:
-    "Proposições da Câmara, do Senado e do Congresso: o que foi apresentado, o que está em pauta e o que foi votado.",
+    "Proposições, votações e composição do Congresso, com a fonte oficial em cada item.",
   alternates: { canonical: absoluteUrl("/legis") },
 };
 
-const secoes = [
-  {
-    href: "/legis/agenda",
-    titulo: "Pauta da semana",
-    texto: "O que o plenário e as comissões vão analisar, dia a dia.",
-  },
-  {
-    href: "/legis/proposicoes",
-    titulo: "Proposições",
-    texto: "Busca e filtros por Casa, tipo, estágio, tema e UF do autor.",
-  },
-  {
-    href: "/radar",
-    titulo: "Radar",
-    texto: "Atos do Diário Oficial da União e pautas dos tribunais.",
-  },
+const etapas = ["Apresentada", "Comissões", "Plenário · 1ª Casa", "2ª Casa", "Sanção", "Lei"];
+
+const radar = [
+  { fonte: "Diário Oficial da União", texto: "Leis, decretos, medidas provisórias e nomeações do dia." },
+  { fonte: "STF", texto: "Pauta do plenário e o que está em julgamento." },
+  { fonte: "TSE", texto: "Sessões e decisões da Justiça Eleitoral." },
 ];
 
 export default function LegisHome() {
   return (
-    <>
-      <span className="eyebrow">King&apos;s Legis</span>
-      <h1>O que o Legislativo está fazendo</h1>
-      <p className="lead">
-        Proposições da Câmara, do Senado e do Congresso, com o estágio de cada uma e o link
-        para a fonte oficial.
-      </p>
+    <div className="container home">
+      <section className="hero">
+        <div className="hero-texto">
+          <p className="eyebrow">King&apos;s Legis</p>
+          <h1>O que o Congresso decidiu, em linguagem clara</h1>
+          <p className="lead">
+            Proposições, votações e a composição da Câmara e do Senado, com a fonte oficial em cada
+            item.
+          </p>
+          <form className="busca" action="/legis/proposicoes">
+            <label className="busca-campo">
+              <span className="sr-only">Buscar</span>
+              <input type="search" name="q" placeholder="Número do projeto, tema ou parlamentar" />
+            </label>
+            <button type="submit" className="btn btn-primario">
+              Buscar
+            </button>
+          </form>
+        </div>
+        <Hemiciclo />
+      </section>
 
-      <div className="grid">
-        {secoes.map((s) => (
-          <section key={s.href} className="card">
-            <h2>
-              <Link href={s.href}>{s.titulo}</Link>
-            </h2>
-            <p className="muted">{s.texto}</p>
-          </section>
-        ))}
-      </div>
+      <section className="duas-colunas">
+        <Agenda />
+        <section className="card" aria-labelledby="avancos-titulo">
+          <div className="card-head">
+            <h2 id="avancos-titulo">Avançaram esta semana</h2>
+            <Link href="/legis/proposicoes">Ver todas</Link>
+          </div>
+          <p className="muted">
+            Cada proposição vai mostrar em que etapa está, do protocolo até virar lei:
+          </p>
+          <div className="etapas" aria-hidden="true">
+            {etapas.map((e, i) => (
+              <span key={e} className={i < 2 ? "etapa feita" : i === 2 ? "etapa atual" : "etapa"} />
+            ))}
+          </div>
+          <div className="etapas-nomes">
+            {etapas.map((e) => (
+              <span key={e}>{e}</span>
+            ))}
+          </div>
+          <div className="vazio">
+            <p className="muted">
+              A lista entra quando a coleta da Câmara estiver ligada.
+            </p>
+          </div>
+        </section>
+      </section>
 
-      <p className="notice">
-        Em construção. A coleta de dados ainda não está ligada; esta página vai mostrar a
-        pauta da semana, as proposições que mudaram de estágio e as mais relevantes.
-      </p>
-    </>
+      <MapaEstados />
+
+      <section aria-labelledby="radar-titulo" className="radar">
+        <div className="card-head">
+          <h2 id="radar-titulo">Radar do dia</h2>
+          <Link href="/radar">Abrir o Radar</Link>
+        </div>
+        <div className="radar-cards">
+          {radar.map((r) => (
+            <article key={r.fonte} className="card">
+              <p className="eyebrow">{r.fonte}</p>
+              <p className="radar-texto">{r.texto}</p>
+              <p className="muted small">Em construção.</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
