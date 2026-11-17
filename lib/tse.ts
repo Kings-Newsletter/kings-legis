@@ -98,7 +98,8 @@ export async function listarEleitos(
   return (json.candidatos ?? [])
     .filter((c) => (c.descricaoTotalizacao ?? "").startsWith("Eleito"))
     .map((c) => ({
-      id: `tse-${c.id}`,
+      // tse-<ano>-<eleição>-<unidade>-<candidato>: o bastante para achar a ficha no TSE.
+      id: `tse-${eleicao.ano}-${eleicao.id}-${unidade}-${c.id}`,
       nome: nomeProprio(c.nomeUrna),
       partido: siglaPartido(c.partido?.sigla),
       uf,

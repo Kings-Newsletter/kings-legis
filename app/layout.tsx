@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { PopupPolitico } from "@/components/politicos/popup-politico";
 import { site } from "@/lib/site";
 
 import "./globals.css";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SiteHeader />
         <main id="conteudo">{children}</main>
         <SiteFooter />
+        <PopupPolitico />
       </body>
     </html>
   );

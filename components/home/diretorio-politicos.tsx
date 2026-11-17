@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 
+import { abrirPolitico } from "@/lib/abrir-politico";
 import { COR_PARTIDO } from "@/lib/bancadas";
 import type { Cargo, Parlamentar } from "@/lib/parlamentares";
 
@@ -178,12 +179,10 @@ function Pessoa({ p }: { p: Parlamentar }) {
       </span>
     </>
   );
-  return p.url ? (
-    <a className="pessoa" href={p.url} target="_blank" rel="noopener noreferrer">
+  return (
+    <button type="button" className="pessoa" onClick={() => abrirPolitico(p)}>
       {conteudo}
-    </a>
-  ) : (
-    <div className="pessoa">{conteudo}</div>
+    </button>
   );
 }
 
@@ -196,12 +195,14 @@ export function QuemGoverna({ titulo, pessoas, nota }: { titulo: string; pessoas
       <ul className="governa-lista">
         {pessoas.map((p) => (
           <li key={p.id}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.foto} alt="" loading="lazy" />
-            <span className="pessoa-nome">{p.nome}</span>
-            <span className="pessoa-cargo">
-              {p.cargo} · {p.partido}
-            </span>
+            <button type="button" className="governa-botao" onClick={() => abrirPolitico(p)}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.foto} alt="" loading="lazy" />
+              <span className="pessoa-nome">{p.nome}</span>
+              <span className="pessoa-cargo">
+                {p.cargo} · {p.partido}
+              </span>
+            </button>
           </li>
         ))}
       </ul>
