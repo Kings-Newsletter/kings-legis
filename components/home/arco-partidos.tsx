@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState, type SyntheticEvent } from "react";
 
 import { fileirasPara, posicoes, raioPara } from "@/lib/arco";
 import { COR_PARTIDO } from "@/lib/bancadas";
+import { abrirPolitico } from "@/lib/abrir-politico";
 import { CAMPOS, campoDe, descricaoCampo, FONTE_IDEOLOGIA, posicaoNoEixo, type Campo } from "@/lib/ideologia";
 import type { Parlamentar } from "@/lib/parlamentares";
 
@@ -158,9 +159,6 @@ export function ArcoPartidos({ titulo, casas }: Props) {
         ? " cadeira-recua"
         : "";
 
-  const alternarPessoa = (id: string) => {
-    setPessoaFixa((atual) => (atual === id ? null : id));
-  };
 
   return (
     <section className="lugar-bloco" aria-label={titulo}>
@@ -178,8 +176,8 @@ export function ArcoPartidos({ titulo, casas }: Props) {
       </div>
       <p className="muted small">
         Cada bolinha é a cadeira de uma pessoa, na cor do partido, com os partidos da esquerda para a direita. Passe o
-        mouse numa bolinha para ver quem está nela; toque num campo ou num partido para ver só as cadeiras dele, com o
-        rosto de cada um (toque de novo para voltar).
+        mouse numa bolinha para ver quem está nela e clique para abrir a ficha; toque num campo ou num partido para ver
+        só as cadeiras dele, com o rosto de cada um (toque de novo para voltar).
       </p>
 
       <div className="arco-lugar" ref={area}>
@@ -250,8 +248,7 @@ export function ArcoPartidos({ titulo, casas }: Props) {
                 tabIndex={oculta ? -1 : 0}
                 aria-hidden={oculta || undefined}
                 aria-label={`${a.pessoa.nome}, ${a.pessoa.partido}`}
-                aria-pressed={pessoaFixa === a.pessoa.id}
-                className={`cadeira cadeira-foto${recuo(a)}${emFoco ? " cadeira-destaque" : ""}`}
+                                className={`cadeira cadeira-foto${recuo(a)}${emFoco ? " cadeira-destaque" : ""}`}
                 style={{ animationDelay: `${Math.round(a.ordem * passo)}ms` }}
                 onMouseEnter={(ev) => {
                   marcarPonto(ev);
@@ -263,14 +260,11 @@ export function ArcoPartidos({ titulo, casas }: Props) {
                   setPessoaHover(a.pessoa.id);
                 }}
                 onBlur={() => setPessoaHover(null)}
-                onClick={(ev) => {
-                  marcarPonto(ev);
-                  alternarPessoa(a.pessoa.id);
-                }}
+                onClick={() => abrirPolitico(a.pessoa)}
                 onKeyDown={(ev) => {
                   if (ev.key === "Enter" || ev.key === " ") {
                     ev.preventDefault();
-                    alternarPessoa(a.pessoa.id);
+                    abrirPolitico(a.pessoa);
                   }
                 }}
               >

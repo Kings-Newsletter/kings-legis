@@ -1,7 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
-
+import { abrirPolitico } from "@/lib/abrir-politico";
 import { COR_PARTIDO } from "@/lib/bancadas";
 import type { Parlamentar } from "@/lib/parlamentares";
 
@@ -23,7 +22,7 @@ export function ListaPoliticos({ titulo, pessoas, mostrarUf = false, nota }: Pro
       <ul className="politicos-lista">
         {pessoas.map((p) => (
           <li key={p.id}>
-            <Item url={p.url}>
+            <button type="button" className="politico" onClick={() => abrirPolitico(p)}>
               {/* Fotos oficiais da Câmara e do Senado. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.foto} alt="" loading="lazy" width={44} height={44} className="politico-foto" />
@@ -37,21 +36,10 @@ export function ListaPoliticos({ titulo, pessoas, mostrarUf = false, nota }: Pro
               <span className="politico-partido" style={{ borderColor: COR_PARTIDO[p.partido] ?? "#9aa5b1" }}>
                 {p.partido}
               </span>
-            </Item>
+            </button>
           </li>
         ))}
       </ul>
     </section>
-  );
-}
-
-/** Com página oficial, a linha vira link; sem ela, fica só o cartão. */
-function Item({ url, children }: { url: string; children: ReactNode }) {
-  return url ? (
-    <a href={url} className="politico" target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  ) : (
-    <div className="politico">{children}</div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ArcoPartidos } from "@/components/home/arco-partidos";
+import { abrirPolitico } from "@/lib/abrir-politico";
 import { SeletorEstado } from "@/components/home/seletor-estado";
 import { COR_PARTIDO, DATA_CONSULTA } from "@/lib/bancadas";
 import { descricaoCampo } from "@/lib/ideologia";
@@ -152,14 +153,14 @@ export function PaginaPartidos() {
                   <ul className="partido-rostos">
                     {[...b.senadores, ...b.deputados].map((p) => (
                       <li key={p.id}>
-                        <a href={p.url || undefined} target="_blank" rel="noopener noreferrer" title={`${p.nome} · ${p.cargo} · ${p.uf}`}>
+                        <button type="button" onClick={() => abrirPolitico(p)} title={`${p.nome} · ${p.cargo} · ${p.uf}`}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={p.foto} alt="" loading="lazy" width={52} height={52} style={{ borderColor: b.cor }} />
                           <span className="partido-rosto-nome">{p.nome}</span>
                           <span className="partido-rosto-cargo">
                             {p.cargo === "Senador(a)" ? "Senado" : "Câmara"} · {p.uf}
                           </span>
-                        </a>
+                        </button>
                       </li>
                     ))}
                   </ul>
