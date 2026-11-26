@@ -4511,3 +4511,199 @@ button.politico {
     transition: none;
   }
 }
+
+/* ------------------------------------------------ Calendário da agenda */
+
+.agenda-calendario {
+  gap: 12px;
+}
+
+.agenda-calendario-topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agenda-calendario-topo h2 {
+  min-width: 190px;
+  text-align: center;
+}
+
+.agenda-calendario-topo .calendario-nav {
+  font-size: 1.25rem;
+  line-height: 1;
+  text-decoration: none;
+  width: 36px;
+  height: 36px;
+}
+
+.calendario-hoje-link {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.calendario-grade-mes {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.calendario-linha {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendario-linha + .calendario-linha {
+  border-top: 1px solid var(--border);
+}
+
+.calendario-dias-semana span {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+}
+
+.calendario-celula {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 108px;
+  min-width: 0;
+  padding: 8px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  transition: background 120ms ease;
+}
+
+.calendario-celula + .calendario-celula {
+  border-left: 1px solid var(--border);
+}
+
+a.calendario-celula:hover {
+  background: var(--surface-muted);
+}
+
+.calendario-celula-fora {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.calendario-numero {
+  font-weight: 700;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendario-celula-hoje .calendario-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+}
+
+.calendario-celula-aberta {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: var(--accent-soft);
+}
+
+a.calendario-celula-aberta:hover {
+  background: var(--accent-soft);
+}
+
+.calendario-sessao {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.calendario-sessao b {
+  font-variant-numeric: tabular-nums;
+}
+
+.calendario-sessao-deliberativa {
+  background: var(--accent);
+  color: #fff;
+}
+
+.calendario-sessao-cancelada {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.calendario-mais,
+.calendario-comissoes {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.calendario-comissoes {
+  margin-top: auto;
+}
+
+.calendario-ponto {
+  display: none;
+}
+
+.calendario-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendario-legenda .calendario-sessao {
+  display: inline-block;
+}
+
+/* Celular: célula vira número com ponto; o detalhe fica no painel do dia. */
+@media (max-width: 720px) {
+  .calendario-celula {
+    min-height: 52px;
+    align-items: center;
+    padding: 6px 2px;
+  }
+
+  .calendario-sessao,
+  .calendario-mais,
+  .calendario-comissoes {
+    display: none;
+  }
+
+  .calendario-celula-com .calendario-ponto {
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .calendario-dias-semana span {
+    padding: 6px 2px;
+    text-align: center;
+  }
+
+  .agenda-calendario-topo h2 {
+    min-width: 0;
+    font-size: 1.125rem;
+  }
+}

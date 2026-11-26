@@ -117,15 +117,18 @@ async function pautaCamara(id: number): Promise<ItemPauta[]> {
   }
 }
 
-async function agendaCamara(inicio: string, fim: string): Promise<EventoAgenda[]> {
+async function agendaCamara(inicio: string, fim: string, pautaNoDia?: string): Promise<EventoAgenda[]> {
   const eventos: EventoCamara[] = [];
-  for (let pagina = 1; pagina <= 5; pagina++) {
-    const { dados } = await getJson<{ dados: EventoCamara[] }>(
+  // Um mês tem algumas centenas de eventos (100 por página).
+  // A página pode vir com menos de 100 itens antes do fim: o total real vem em x-total-count.
+  for (let pagina = 1; pagina <= 12; pagina++) {
+    const { dados, headers } = await getJson<{ dados: EventoCamara[] }>(
       `${CAMARA}/eventos?${qs({ dataInicio: inicio, dataFim: fim, itens: 100, pagina, ordem: "ASC", ordenarPor: "dataHoraInicio" })}`,
       MEIA_HORA,
     );
     eventos.push(...dados.dados);
-    if (dados.dados.length < 100) break;
+    const total = Number(headers.get("x-total-count"));
+    if (!dados.dados.length || (Number.isFinite(total) && total > 0 ? pagina * 100 >= total : dados.dados.length < 100)) break;
   }
   const lista = eventos.map((e): EventoAgenda => {
     const orgao = e.orgaos[0];
@@ -146,10 +149,12 @@ async function agendaCamara(inicio: string, fim: string): Promise<EventoAgenda[]
       pauta: [],
     };
   });
-  // Pauta só das sessões deliberativas do plenário (poucas por semana); as comissões levam ao link oficial.
+  // Pauta só das sessões deliberativas do plenário (e, num mês, só as do dia escolhido);
+  // as comissões levam ao link oficial.
   await Promise.all(
     lista
       .filter((e) => e.plenario && e.deliberativo && !/cancelad/i.test(e.situacao))
+      .filter((e) => !pautaNoDia || diaDe(e.inicio) === pautaNoDia)
       .map(async (e) => {
         e.pauta = await pautaCamara(Number(e.id.split(":")[1]));
       }),
@@ -282,6 +287,45 @@ const comissoesSenado = unstable_cache(
 
 // ------------------------------------------------------------------ API
 
+/** Dia (AAAA-MM-DD, Brasília) de um horário ISO. */
+export const diaDe = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+
+/** Primeiro e último dia de um mês "AAAA-MM". */
+export function limitesDoMes(mes: string): { inicio: string; fim: string } {
+  const [a, m] = mes.split("-").map(Number);
+  const fim = new Date(Date.UTC(a!, m!, 0)).toISOString().slice(0, 10);
+  return { inicio: `${mes}-01`, fim };
+}
+
+/** Mês anterior ou seguinte de "AAAA-MM". */
+export function outroMes(mes: string, n: number): string {
+  const [a, m] = mes.split("-").map(Number);
+  return new Date(Date.UTC(a!, m! - 1 + n, 1)).toISOString().slice(0, 7);
+}
+
+/**
+ * Agenda de uma Casa entre duas datas, em ordem de horário. Com `pautaNoDia`, a pauta da
+ * Câmara (uma consulta por sessão) é buscada só para as sessões daquele dia.
+ */
+export async function agendaDoPeriodo(casa: CasaAgenda, inicio: string, fim: string, pautaNoDia?: string): Promise<Agenda> {
+  try {
+    const eventos =
+      casa === "camara"
+        ? await agendaCamara(inicio, fim, pautaNoDia)
+        : [
+            ...(await plenarioSenado(inicio, fim)),
+            ...(await comissoesSenado(inicio, fim).catch((e) => {
+              console.error("[legis] comissões do Senado", e);
+              return [] as EventoAgenda[];
+            })),
+          ];
+    return { inicio, fim, eventos: eventos.sort((a, b) => a.inicio.localeCompare(b.inicio)) };
+  } catch (e) {
+    console.error(`[legis] agenda ${casa}`, e);
+    return { inicio, fim, eventos: [], erro: true };
+  }
+}
+
 export interface Agenda {
   inicio: string;
   fim: string;
@@ -291,23 +335,7 @@ export interface Agenda {
 
 /** Agenda de uma Casa numa semana (segunda a domingo), em ordem de horário. */
 export async function agendaDaSemana(casa: CasaAgenda, segunda: string): Promise<Agenda> {
-  const fim = fimDaSemana(segunda);
-  try {
-    const eventos =
-      casa === "camara"
-        ? await agendaCamara(segunda, fim)
-        : [
-            ...(await plenarioSenado(segunda, fim)),
-            ...(await comissoesSenado(segunda, fim).catch((e) => {
-              console.error("[legis] comissões do Senado", e);
-              return [] as EventoAgenda[];
-            })),
-          ];
-    return { inicio: segunda, fim, eventos: eventos.sort((a, b) => a.inicio.localeCompare(b.inicio)) };
-  } catch (e) {
-    console.error(`[legis] agenda ${casa}`, e);
-    return { inicio: segunda, fim, eventos: [], erro: true };
-  }
+  return agendaDoPeriodo(casa, segunda, fimDaSemana(segunda));
 }
 
 /**

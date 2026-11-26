@@ -6,8 +6,10 @@ import { MapaLazy } from "@/components/home/mapa-lazy";
 import { ResumoCongresso } from "@/components/home/resumo-congresso";
 import { ItemProposicao } from "@/components/proposicoes/item-proposicao";
 import { buscarComposicao } from "@/lib/composicao";
-import { proximasSessoes } from "@/lib/legis/agenda";
+import { hojeBrasilia, proximasSessoes } from "@/lib/legis/agenda";
 import { avancosDaSemana } from "@/lib/legis/proposicoes";
+import { CATEGORIAS_DOU, ultimaEdicaoDou } from "@/lib/radar/dou";
+import { TRIBUNAIS, noticiasDosTribunais, type Tribunal } from "@/lib/radar/tribunais";
 import { absoluteUrl } from "@/lib/site";
 
 /** "Avançaram esta semana" vem direto da Câmara e do Senado; a página é refeita a cada 5 minutos. */
@@ -22,20 +24,25 @@ export const metadata: Metadata = {
 
 const etapas = ["Apresentada", "Comissões", "Plenário · 1ª Casa", "2ª Casa", "Sanção", "Lei"];
 
-
-const radar = [
-  { fonte: "Diário Oficial da União", texto: "Leis, decretos, medidas provisórias e nomeações do dia." },
-  { fonte: "STF", texto: "Pauta do plenário e o que está em julgamento." },
-  { fonte: "TSE", texto: "Sessões e decisões da Justiça Eleitoral." },
-];
+const DATA_DOU = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" });
+const DATA_NOTICIA = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+/** Tribunais que aparecem na home (os outros estão no Radar). */
+const TRIBUNAIS_HOME: Tribunal[] = ["stf", "tse"];
 
 export default async function LegisHome() {
-  const [avancos, composicao, agendaCamara, agendaSenado] = await Promise.all([
+  const hoje = hojeBrasilia();
+  const [avancos, composicao, agendaCamara, agendaSenado, edicao, noticias] = await Promise.all([
     avancosDaSemana(5),
     buscarComposicao(),
     proximasSessoes("camara"),
     proximasSessoes("senado"),
+    ultimaEdicaoDou(hoje, hoje).catch(() => null),
+    noticiasDosTribunais(3),
   ]);
+  // Destaques do DOU na ordem de importância (emendas, leis, MPs, decretos...).
+  const destaquesDou = edicao
+    ? CATEGORIAS_DOU.flatMap((c) => edicao.atos.filter((a) => a.categoria === c.id))
+    : [];
   const numeros = [
     { valor: String(composicao.camara.total), rotulo: "deputados federais em exercício" },
     { valor: String(composicao.senado.total), rotulo: "senadores em exercício" },
@@ -126,11 +133,52 @@ export default async function LegisHome() {
           <Link href="/radar">Abrir o Radar</Link>
         </div>
         <div className="radar-cards">
-          {radar.map((r) => (
-            <article key={r.fonte} className="card">
-              <p className="eyebrow">{r.fonte}</p>
-              <p className="radar-texto">{r.texto}</p>
-              <p className="muted small">Em construção.</p>
+          <article className="card">
+            <p className="eyebrow">
+              Diário Oficial da União{edicao ? ` · ${DATA_DOU.format(new Date(`${edicao.data}T12:00:00Z`))}` : ""}
+            </p>
+            {!edicao ? (
+              <p className="muted">O site da Imprensa Nacional não respondeu agora.</p>
+            ) : destaquesDou.length ? (
+              <ul className="radar-atos">
+                {destaquesDou.slice(0, 4).map((a) => (
+                  <li key={a.id} className="radar-ato">
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="radar-ato-titulo">
+                      {a.titulo}
+                    </a>
+                    {a.resumo && <p className="muted small">{a.resumo.length > 140 ? `${a.resumo.slice(0, 139).trimEnd()}…` : a.resumo}</p>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="radar-texto">
+                Nenhuma lei, decreto ou medida provisória nesta edição; {edicao.atos.length} outros atos na Seção 1.
+              </p>
+            )}
+            <Link href="/radar?ver=dou" className="small">
+              {destaquesDou.length > 4 ? `Mais ${destaquesDou.length - 4} destaques e todos os atos →` : "Todos os atos da edição →"}
+            </Link>
+          </article>
+          {TRIBUNAIS_HOME.map((t) => (
+            <article key={t} className="card">
+              <p className="eyebrow">{TRIBUNAIS[t].sigla}</p>
+              {noticias.falhas.includes(t) || !noticias.porTribunal[t].length ? (
+                <p className="muted">O canal de notícias do {TRIBUNAIS[t].sigla} não respondeu agora.</p>
+              ) : (
+                <ul className="radar-atos">
+                  {noticias.porTribunal[t].map((n) => (
+                    <li key={n.url} className="radar-ato">
+                      <a href={n.url} target="_blank" rel="noopener noreferrer" className="radar-ato-titulo">
+                        {n.titulo}
+                      </a>
+                      {n.data && <p className="muted small">{DATA_NOTICIA.format(new Date(n.data))}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link href="/radar?ver=tribunais" className="small">
+                STF, STJ, TSE e TST no Radar →
+              </Link>
             </article>
           ))}
         </div>

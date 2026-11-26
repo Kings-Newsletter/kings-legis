@@ -3,6 +3,5 @@
   "framework": "nextjs",
   "installCommand": "npm install --no-audit --no-fund",
   "buildCommand": "npm run build",
-  "regions": ["gru1"],
-  "crons": [{ "path": "/legis/api/aquecer", "schedule": "0 9 * * *" }]
+  "regions": ["gru1"]
 }

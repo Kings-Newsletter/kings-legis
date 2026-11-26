@@ -69,6 +69,15 @@ exemplo (fictícios, nunca em produção), ponha `LEGIS_EXEMPLOS=1` no `.env.loc
    `/radar` e `/radar/:path*` para `https://kings-legis.vercel.app`, como já existe para
    `/sports` e `/economy`.
 3. No `robots.txt` da newsletter, apontar para `/legis/sitemap.xml`.
+4. Configurar `CRON_SECRET` (valor aleatório longo) no projeto da Vercel e no kings-worker.
+5. No agendador do kings-worker, chamar o aquecimento dos caches com
+   `Authorization: Bearer <CRON_SECRET>` (nada é agendado na Vercel):
+   - `GET https://kings-legis.vercel.app/legis/api/aquecer?parte=radar` a cada 30 minutos,
+     das 6h às 22h (edição do DOU e notícias dos tribunais);
+   - `GET https://kings-legis.vercel.app/legis/api/aquecer?parte=perfis` uma vez por dia,
+     às 6h (cota e folha do Senado, funcionários da Câmara, candidatos do TSE; leva de
+     1 a 3 minutos).
+   A resposta é um JSON com `ok` e as etapas; `ok: false` lista as fontes que falharam.
 
 ## Pendências desta base
 
