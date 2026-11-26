@@ -1,7 +1,7 @@
 /**
  * Deputados federais e senadores em exercício, das APIs oficiais da Câmara e do
- * Senado. Usado pela rota /legis/api/parlamentares, que guarda o resultado em cache
- * por um dia: as páginas não chamam as APIs externas a cada visita.
+ * Senado. Usado pela composição do Congresso (lib/composicao.ts) e pela rota
+ * /legis/api/parlamentares, sempre com cache: a visita não chama as APIs externas.
  */
 
 export type Cargo =
@@ -26,7 +26,17 @@ export interface Parlamentar {
   url: string;
 }
 
-const UM_DIA = 60 * 60 * 24;
+/**
+ * As listas são refeitas no máximo a cada 6 horas (cache do fetch no servidor):
+ * a visita nunca chama a Câmara ou o Senado diretamente.
+ */
+export const SEIS_HORAS = 60 * 60 * 6;
+
+/** Hora em que a fonte respondeu, pelo cabeçalho Date da resposta (fica guardado no cache). */
+function horaDaResposta(r: Response): Date {
+  const d = new Date(r.headers.get("date") ?? "");
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
 
 interface DeputadoApi {
   id: number;
@@ -36,19 +46,21 @@ interface DeputadoApi {
   urlFoto: string;
 }
 
-async function deputados(): Promise<Parlamentar[]> {
+async function deputados(): Promise<{ lista: Parlamentar[]; consultadoEm: Date }> {
   const todos: DeputadoApi[] = [];
+  let consultadoEm = new Date();
   for (let pagina = 1; pagina <= 8; pagina++) {
     const r = await fetch(
       `https://dadosabertos.camara.leg.br/api/v2/deputados?itens=100&pagina=${pagina}&ordem=ASC&ordenarPor=nome`,
-      { headers: { Accept: "application/json" }, next: { revalidate: UM_DIA } },
+      { headers: { Accept: "application/json" }, next: { revalidate: SEIS_HORAS } },
     );
     if (!r.ok) throw new Error(`Câmara respondeu ${r.status}`);
+    if (pagina === 1) consultadoEm = horaDaResposta(r);
     const json = (await r.json()) as { dados: DeputadoApi[] };
     todos.push(...json.dados);
     if (json.dados.length < 100) break;
   }
-  return todos.map((d) => ({
+  const lista: Parlamentar[] = todos.map((d) => ({
     id: `camara-${d.id}`,
     nome: d.nome,
     partido: d.siglaPartido,
@@ -57,6 +69,13 @@ async function deputados(): Promise<Parlamentar[]> {
     foto: d.urlFoto,
     url: `https://www.camara.leg.br/deputados/${d.id}`,
   }));
+  return { lista, consultadoEm };
+}
+
+interface ExercicioApi {
+  DataInicio?: string;
+  DataFim?: string;
+  SiglaCausaAfastamento?: string;
 }
 
 interface SenadorApi {
@@ -64,26 +83,49 @@ interface SenadorApi {
     CodigoParlamentar: string;
     NomeParlamentar: string;
     SiglaPartidoParlamentar?: string;
-    UfParlamentar: string;
+    UfParlamentar?: string;
     UrlFotoParlamentar: string;
     UrlPaginaParlamentar?: string;
   };
+  Mandato?: {
+    UfParlamentar?: string;
+    Exercicios?: { Exercicio?: ExercicioApi | ExercicioApi[] };
+  };
 }
 
-async function senadores(): Promise<Parlamentar[]> {
+const comoLista = <T,>(v: T | T[] | undefined): T[] => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+
+/** Hoje em Brasília, AAAA-MM-DD. */
+const hojeBrasilia = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+
+/**
+ * A lista "atual" do Senado às vezes traz o titular e o suplente juntos, no dia em
+ * que um afastamento começa ou termina. Fica de fora quem tem afastamento que cobre hoje.
+ */
+function afastadoHoje(s: SenadorApi, hoje: string): boolean {
+  return comoLista(s.Mandato?.Exercicios?.Exercicio).some(
+    (e) => e.SiglaCausaAfastamento && e.DataInicio && e.DataInicio <= hoje && (!e.DataFim || e.DataFim >= hoje),
+  );
+}
+
+async function senadores(): Promise<{ lista: Parlamentar[]; consultadoEm: Date }> {
   const r = await fetch("https://legis.senado.leg.br/dadosabertos/senador/lista/atual.json", {
     headers: { Accept: "application/json" },
-    next: { revalidate: UM_DIA },
+    next: { revalidate: SEIS_HORAS },
   });
   if (!r.ok) throw new Error(`Senado respondeu ${r.status}`);
   const json = (await r.json()) as {
     ListaParlamentarEmExercicio: { Parlamentares: { Parlamentar: SenadorApi[] } };
   };
-  return json.ListaParlamentarEmExercicio.Parlamentares.Parlamentar.map(({ IdentificacaoParlamentar: s }) => ({
+  const hoje = hojeBrasilia();
+  const lista: Parlamentar[] = json.ListaParlamentarEmExercicio.Parlamentares.Parlamentar.filter(
+    (p) => !afastadoHoje(p, hoje),
+  ).map(({ IdentificacaoParlamentar: s, Mandato: m }) => ({
     id: `senado-${s.CodigoParlamentar}`,
     nome: s.NomeParlamentar,
     partido: s.SiglaPartidoParlamentar ?? "S/Partido",
-    uf: s.UfParlamentar,
+    // Alguns registros trazem a UF só no mandato.
+    uf: s.UfParlamentar ?? m?.UfParlamentar ?? "",
     cargo: "Senador(a)",
     // O Senado publica os endereços com http://; o site é servido em https.
     foto: s.UrlFotoParlamentar.replace(/^http:/, "https:"),
@@ -92,9 +134,23 @@ async function senadores(): Promise<Parlamentar[]> {
       "https:",
     ),
   }));
+  return { lista, consultadoEm: horaDaResposta(r) };
+}
+
+export interface ListaParlamentares {
+  parlamentares: Parlamentar[];
+  /** Hora da consulta mais antiga entre Câmara e Senado. */
+  consultadoEm: Date;
+}
+
+export async function buscarParlamentaresComData(): Promise<ListaParlamentares> {
+  const [d, s] = await Promise.all([deputados(), senadores()]);
+  return {
+    parlamentares: [...s.lista, ...d.lista],
+    consultadoEm: d.consultadoEm < s.consultadoEm ? d.consultadoEm : s.consultadoEm,
+  };
 }
 
 export async function buscarParlamentares(): Promise<Parlamentar[]> {
-  const [d, s] = await Promise.all([deputados(), senadores()]);
-  return [...s, ...d];
+  return (await buscarParlamentaresComData()).parlamentares;
 }

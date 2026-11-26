@@ -52,6 +52,8 @@ export interface Autor {
   partido?: string;
   uf?: string;
   tipo?: string;
+  /** Id da página do político no portal ("camara-204524", "senado-5012"), quando houver. */
+  idPolitico?: string;
 }
 
 /** Coleção legis_items: uma proposição. `_id` com prefixo da Casa (ex.: "camara:2345678"). */

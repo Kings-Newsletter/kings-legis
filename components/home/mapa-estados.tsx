@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
-import { DATA_CONSULTA, DEPUTADOS_POR_UF } from "@/lib/bancadas";
+import { useComposicao } from "@/components/composicao-contexto";
+import { formatarConsulta } from "@/lib/bancadas";
 import { ESTADOS, MAPA_VIEWBOX, REGIOES, type Regiao } from "@/lib/brasil";
 import { carregarMalhaEstado, type MalhaEstado } from "@/lib/geo";
 import { deputadosEstaduaisPorRegra, type ResumoIbge } from "@/lib/ibge";
@@ -11,6 +12,7 @@ import type { Parlamentar } from "@/lib/parlamentares";
 import { ArcoPartidos, type CasaDoLugar } from "./arco-partidos";
 import { DiretorioPoliticos, QuemGoverna } from "./diretorio-politicos";
 import { SeletorEstado } from "./seletor-estado";
+import { useZoomMapa } from "./zoom-mapa";
 
 type Nivel =
   | { tipo: "brasil" }
@@ -31,6 +33,31 @@ const FAIXAS = [
   { ate: Infinity, cor: "#1f4e79", rotulo: "41 a 70" },
 ];
 const corBancada = (n: number) => (FAIXAS.find((f) => n <= f.ate) ?? FAIXAS[FAIXAS.length - 1]!).cor;
+
+/**
+ * Ajuste do ponto do nome de alguns estados, em fração da caixa do contorno: o meio
+ * da caixa cai fora da forma ou em cima de um vizinho (o DF fica dentro de Goiás).
+ */
+const AJUSTE_ROTULO: Record<string, [number, number]> = {
+  GO: [-0.14, 0.14],
+  PE: [0.06, 0.08],
+  PI: [-0.05, 0.08],
+  MA: [0.04, 0.05],
+  RN: [0.05, 0.05],
+  SP: [0.07, 0.07],
+  RJ: [0.02, 0.05],
+  SC: [0.1, 0],
+  PR: [0.03, 0],
+  BA: [-0.05, 0],
+  MG: [0, 0.05],
+  AM: [0, 0.08],
+  PA: [-0.05, 0.05],
+  TO: [-0.02, 0.05],
+  RS: [0.05, 0],
+};
+
+/** Largura aproximada de um texto, em unidades do SVG, para saber se o nome cabe. */
+const larguraTexto = (texto: string, tamanho: number) => texto.length * 0.56 * tamanho;
 
 const regiaoDaUf = (uf: string): Regiao => ESTADOS.find((e) => e.uf === uf)?.regiao ?? "N";
 const nomeDaUf = (uf: string) => ESTADOS.find((e) => e.uf === uf)?.nome ?? uf;
@@ -77,6 +104,9 @@ function useViewBoxAnimado(alvo: string) {
 }
 
 export function MapaEstados() {
+  const composicao = useComposicao();
+  const DEPUTADOS_POR_UF = composicao.deputadosPorUf;
+  const DATA_CONSULTA = formatarConsulta(composicao.consultadoEm);
   const [nivel, setNivel] = useState<Nivel>({ tipo: "brasil" });
   const [camada, setCamada] = useState<Camada>("regiao");
   const [hover, setHover] = useState<{ nome: string; detalhe: string; x: number; y: number } | null>(null);
@@ -242,6 +272,28 @@ export function MapaEstados() {
 
   const viewBox = useViewBoxAnimado(alvoBrasil);
 
+  // Zoom livre por cima do enquadramento do nível (botões, Ctrl + roda, arrastar).
+  const svgRef = useRef<SVGSVGElement>(null);
+  const emMunicipios = Boolean(ufAtual && malha?.uf === ufAtual);
+  const zoom = useZoomMapa(
+    emMunicipios && malha ? malha.dados.viewBox : viewBox,
+    emMunicipios ? `mun:${ufAtual}` : `br:${JSON.stringify(nivel)}`,
+    svgRef,
+  );
+  const u = zoom.unidadesPorPx;
+  const [vx, vy, vw, vh] = zoom.viewBox.split(" ").map(Number) as [number, number, number, number];
+
+  // Caixa de cada estado, medida uma vez, para posicionar e dimensionar os nomes.
+  const [caixasUf, setCaixasUf] = useState<Record<string, { x: number; y: number; w: number; h: number }>>({});
+  useEffect(() => {
+    const caixas: Record<string, { x: number; y: number; w: number; h: number }> = {};
+    for (const [uf, el] of caminhos.current) {
+      const b = el.getBBox();
+      caixas[uf] = { x: b.x, y: b.y, w: b.width, h: b.height };
+    }
+    setCaixasUf(caixas);
+  }, []);
+
   const subir = useCallback(() => {
     setHover(null);
     setNivel((n) =>
@@ -293,7 +345,14 @@ export function MapaEstados() {
 
   // ------------------------------------------------------------ mapas
   const mapaBrasil = (
-    <svg viewBox={viewBox} role="img" aria-label="Mapa do Brasil por estado" className="mapa-svg">
+    <svg
+      ref={svgRef}
+      viewBox={zoom.viewBox}
+      role="img"
+      aria-label="Mapa do Brasil por estado"
+      className={`mapa-svg${zoom.podeArrastar ? " mapa-arrastavel" : ""}`}
+      {...zoom.handlers}
+    >
       {[...ESTADOS]
         .sort((a, b) => Number(a.uf === ufAtual) - Number(b.uf === ufAtual))
         .map((e) => {
@@ -324,6 +383,31 @@ export function MapaEstados() {
             </path>
           );
         })}
+      <g aria-hidden="true">
+        {ESTADOS.map((e) => {
+          const b = caixasUf[e.uf];
+          if (!b) return null;
+          // Nome inteiro quando cabe no contorno; senão, a sigla (sempre visível).
+          const tamanhoNome = 12 * u;
+          const cabe = larguraTexto(e.nome, tamanhoNome) < b.w * 0.92 && tamanhoNome * 1.4 < b.h;
+          const tamanho = cabe ? tamanhoNome : 11 * u;
+          const [ax, ay] = AJUSTE_ROTULO[e.uf] ?? [0, 0];
+          const escuro = e.uf === ufAtual || (camada === "bancada" && (DEPUTADOS_POR_UF[e.uf] ?? 0) > 20);
+          const fora = regiaoAtual !== null && e.regiao !== regiaoAtual;
+          return (
+            <text
+              key={e.uf}
+              x={b.x + b.w * (0.5 + ax)}
+              y={b.y + b.h * (0.5 + ay)}
+              fontSize={tamanho}
+              strokeWidth={3 * u}
+              className={`mapa-rotulo${escuro ? " mapa-rotulo-claro" : ""}${fora ? " mapa-rotulo-fora" : ""}`}
+            >
+              {cabe ? e.nome : e.uf}
+            </text>
+          );
+        })}
+      </g>
     </svg>
   );
 
@@ -331,10 +415,12 @@ export function MapaEstados() {
   const mapaMunicipios = ufAtual && malhaPronta && (
     <svg
       key={ufAtual}
-      viewBox={malhaPronta.viewBox}
+      ref={svgRef}
+      viewBox={zoom.viewBox}
       role="img"
       aria-label={`Mapa dos municípios de ${nomeDaUf(ufAtual)}`}
-      className="mapa-svg mapa-municipios"
+      className={`mapa-svg mapa-municipios${zoom.podeArrastar ? " mapa-arrastavel" : ""}`}
+      {...zoom.handlers}
     >
       {malhaPronta.municipios.map((m) => {
         const ativo = nivel.tipo === "municipio" && nivel.codigo === m.codigo;
@@ -355,6 +441,28 @@ export function MapaEstados() {
           </path>
         );
       })}
+      <g aria-hidden="true">
+        {malhaPronta.municipios.map((m) => {
+          const ativo = nivel.tipo === "municipio" && nivel.codigo === m.codigo;
+          const tamanho = 11 * u;
+          // Só aparece o nome que cabe dentro do contorno e está à vista; com zoom, aparecem mais.
+          const cabe = larguraTexto(m.nome, tamanho) < m.largura * 0.9 && tamanho * 1.3 < m.altura * 0.75;
+          const aVista = m.cx > vx && m.cx < vx + vw && m.cy > vy && m.cy < vy + vh;
+          if (!ativo && !(cabe && aVista)) return null;
+          return (
+            <text
+              key={m.codigo}
+              x={m.cx}
+              y={m.cy}
+              fontSize={ativo ? 12 * u : tamanho}
+              strokeWidth={3 * u}
+              className={`mapa-rotulo mapa-rotulo-mun${ativo ? " mapa-rotulo-claro" : ""}`}
+            >
+              {m.nome}
+            </text>
+          );
+        })}
+      </g>
     </svg>
   );
 
@@ -727,6 +835,24 @@ export function MapaEstados() {
 
         <div className="mapa-caixa" ref={caixa} onMouseLeave={() => setHover(null)}>
           {mapaMunicipios || mapaBrasil}
+          <div className="mapa-zoom" role="group" aria-label="Zoom do mapa">
+            <button type="button" onClick={zoom.aproximar} disabled={zoom.escala >= 16} aria-label="Aproximar" title="Aproximar (Ctrl + roda do mouse)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button type="button" onClick={zoom.afastar} disabled={zoom.escala <= 1} aria-label="Afastar" title="Afastar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                <path d="M5 12h14" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button type="button" onClick={zoom.enquadrar} disabled={zoom.escala <= 1} aria-label="Enquadrar o mapa inteiro" title="Enquadrar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {zoom.escala > 1 && <span className="mapa-zoom-nivel">{Math.round(zoom.escala * 100)}%</span>}
+          </div>
           {ufAtual && !malhaPronta && !erroMalha && <p className="mapa-carregando">Carregando municípios…</p>}
           {ufAtual && erroMalha && <p className="mapa-carregando">Não foi possível carregar os municípios do IBGE.</p>}
           {hover && (

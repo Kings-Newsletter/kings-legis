@@ -1,39 +1,44 @@
+import Image from "next/image";
 import Link from "next/link";
 
-import { DATA_CONSULTA } from "@/lib/bancadas";
-import { nav, site } from "@/lib/site";
+import { SiteNavigation } from "@/components/layout/site-navigation";
+import { formatarConsulta } from "@/lib/bancadas";
+import { buscarComposicao } from "@/lib/composicao";
+import { site } from "@/lib/site";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const composicao = await buscarComposicao();
   return (
     <header className="site-header">
       <div className="container navbar">
-        {/* Sem logo por enquanto: só o nome em texto. */}
         <Link href="/legis" className="wordmark">
-          {site.name}
+          <Image
+            src={site.brandMark}
+            alt=""
+            width={624}
+            height={261}
+            sizes="48px"
+            className="wordmark-logo"
+            loading="eager"
+          />
+          <span>{site.name}</span>
         </Link>
-        <nav className="site-nav" aria-label="Principal">
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="navbar-acoes">
-          <Link href="/legis/proposicoes" className="btn-icone" aria-label="Buscar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-          </Link>
-          <a href={site.newsletterUrl} className="btn btn-escuro">
-            Assinar a newsletter
-          </a>
-        </div>
+        <SiteNavigation />
       </div>
       <div className="faixa-atualizacao">
         <div className="container faixa-linha">
           <span>
-            Dados oficiais da Câmara e do Senado, consulta em <strong>{DATA_CONSULTA}</strong>
+            {composicao.origem === "api" ? (
+              <>
+                Dados oficiais direto da Câmara e do Senado, consulta em{" "}
+                <strong>{formatarConsulta(composicao.consultadoEm)}</strong>
+              </>
+            ) : (
+              <>
+                Câmara e Senado fora do ar agora: mostrando a consulta de{" "}
+                <strong>{formatarConsulta(composicao.consultadoEm)}</strong>
+              </>
+            )}
           </span>
           <Link href="/legis/como-atualizamos">Como atualizamos</Link>
         </div>

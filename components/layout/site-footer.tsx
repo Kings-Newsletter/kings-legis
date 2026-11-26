@@ -15,10 +15,10 @@ export function SiteFooter() {
           </p>
         </div>
         <div className="rodape-news">
-          <p className="rodape-marca">Resumo da semana no Congresso</p>
-          <p>Receba por e-mail, junto com a King&apos;s Newsletter.</p>
+          <p className="rodape-marca">King&apos;s Newsletter</p>
+          <p>O King&apos;s Legis e o King&apos;s Radar fazem parte da King&apos;s Newsletter.</p>
           <a href={site.newsletterUrl} className="btn btn-claro">
-            Assinar
+            Conhecer a newsletter
           </a>
         </div>
       </div>

@@ -3,13 +3,16 @@
 import { useMemo, useState } from "react";
 
 import { posicoes } from "@/lib/arco";
-import { COMPOSICAO, DATA_CONSULTA, type Casa } from "@/lib/bancadas";
+import { useComposicao } from "@/components/composicao-contexto";
+import { formatarConsulta, type Casa } from "@/lib/bancadas";
 
 export function Hemiciclo() {
   const [casa, setCasa] = useState<Casa>("camara");
   const [fixo, setFixo] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
-  const dados = COMPOSICAO[casa];
+  const composicao = useComposicao();
+  const dados = composicao[casa];
+  const DATA_CONSULTA = formatarConsulta(composicao.consultadoEm);
 
   const cadeiras = useMemo(() => {
     const pos = posicoes(dados.total, dados.fileiras);

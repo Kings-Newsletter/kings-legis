@@ -2,11 +2,13 @@
  * Configuração central do portal. Identidade, URLs e navegação ficam aqui para
  * serem reutilizadas por páginas, SEO e componentes.
  *
- * Ainda não há logo: o nome aparece só em texto.
  */
 
 export const site = {
   name: "King's Legis",
+  logo: "/brand/logo-kings-legis.png",
+  brandMark: "/brand/icon-kings-legis.png",
+  icon: "/favicon.png",
   radarName: "King's Radar",
   tagline: "O que o Congresso, o Diário Oficial e os tribunais fizeram",
   description:

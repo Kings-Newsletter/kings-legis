@@ -19,6 +19,9 @@ export interface Municipio {
   /** Centro aproximado, para posicionar rótulos. */
   cx: number;
   cy: number;
+  /** Largura e altura do contorno, em unidades do SVG (para saber se o nome cabe). */
+  largura: number;
+  altura: number;
 }
 
 export interface MalhaEstado {
@@ -69,6 +72,7 @@ export async function carregarMalhaEstado(uf: string): Promise<MalhaEstado> {
 
   const municipios = malha.features.map((f) => {
     let sx = 0, sy = 0, n = 0;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     const d = aneis(f.geometry)
       .map((anel) =>
         anel
@@ -77,6 +81,10 @@ export async function carregarMalhaEstado(uf: string): Promise<MalhaEstado> {
             sx += X;
             sy += Y;
             n++;
+            if (X < x0) x0 = X;
+            if (X > x1) x1 = X;
+            if (Y < y0) y0 = Y;
+            if (Y > y1) y1 = Y;
             return `${i === 0 ? "M" : "L"}${X} ${Y}`;
           })
           .join("") + "Z",
@@ -86,8 +94,11 @@ export async function carregarMalhaEstado(uf: string): Promise<MalhaEstado> {
       codigo: f.properties.codarea,
       nome: nomePorCodigo.get(f.properties.codarea) ?? f.properties.codarea,
       path: d,
-      cx: n ? sx / n : 0,
-      cy: n ? sy / n : 0,
+      // Média dos vértices, puxada para o meio do contorno: fica dentro na maioria das formas.
+      cx: n ? (sx / n + (x0 + x1) / 2) / 2 : 0,
+      cy: n ? (sy / n + (y0 + y1) / 2) / 2 : 0,
+      largura: n ? x1 - x0 : 0,
+      altura: n ? y1 - y0 : 0,
     };
   });
 
