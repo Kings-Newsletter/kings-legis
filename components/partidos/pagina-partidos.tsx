@@ -5,11 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { ArcoPartidos } from "@/components/home/arco-partidos";
 import { abrirPolitico } from "@/lib/abrir-politico";
 import { SeletorEstado } from "@/components/home/seletor-estado";
-import { COR_PARTIDO, DATA_CONSULTA } from "@/lib/bancadas";
+import { useComposicao } from "@/components/composicao-contexto";
+import { COR_PARTIDO, formatarConsulta } from "@/lib/bancadas";
 import { descricaoCampo } from "@/lib/ideologia";
 import { ESTADOS } from "@/lib/brasil";
 import type { Parlamentar } from "@/lib/parlamentares";
 import { PARTIDOS } from "@/lib/partidos";
+
+import { LogoPartido } from "./logo-partido";
 
 const PREPOSICAO_UF: Record<string, string> = {
   AC: "no", AM: "no", AP: "no", CE: "no", DF: "no", ES: "no", MA: "no", PA: "no", PI: "no",
@@ -28,6 +31,7 @@ interface Bancada {
  * com a foto ao passar o mouse), filtro por estado e um cartão por partido.
  */
 export function PaginaPartidos() {
+  const DATA_CONSULTA = formatarConsulta(useComposicao().consultadoEm);
   const [pessoas, setPessoas] = useState<Parlamentar[] | null>(null);
   const [erro, setErro] = useState(false);
   const [uf, setUf] = useState("");
@@ -112,6 +116,10 @@ export function PaginaPartidos() {
           <h3 id="partidos-lista-titulo">Cada partido {onde}</h3>
           <p className="muted small">Toque num partido para ver os rostos da bancada.</p>
         </div>
+        <p className="muted small">
+          Logos dos sites oficiais de cada partido (o do PV vem da Câmara dos Deputados). O Cidadania
+          não publica logo e aparece com a sigla.
+        </p>
         <ul className="partidos-lista">
           {bancadas.map((b) => {
             const info = PARTIDOS[b.sigla];
@@ -127,7 +135,7 @@ export function PaginaPartidos() {
                   style={{ borderLeftColor: b.cor }}
                 >
                   <span className="partido-sigla">
-                    <i style={{ background: b.cor }} aria-hidden="true" />
+                    <LogoPartido sigla={b.sigla} cor={b.cor} />
                     {b.sigla}
                     {info?.numero && <span className="partido-numero">nº {info.numero}</span>}
                   </span>

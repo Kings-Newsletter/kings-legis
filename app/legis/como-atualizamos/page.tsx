@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { DATA_CONSULTA } from "@/lib/bancadas";
+import { formatarConsulta } from "@/lib/bancadas";
+import { buscarComposicao } from "@/lib/composicao";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -15,7 +16,8 @@ const fontes = [
   { nome: "Imprensa Nacional — INLABS", url: "https://github.com/Imprensa-Nacional/inlabs", uso: "Atos do Diário Oficial da União (Radar)." },
 ];
 
-export default function ComoAtualizamos() {
+export default async function ComoAtualizamos() {
+  const composicao = await buscarComposicao();
   return (
     <div className="container pagina">
       <p className="eyebrow">King&apos;s Legis</p>
@@ -27,8 +29,11 @@ export default function ComoAtualizamos() {
       <section className="card">
         <h2>Situação atual</h2>
         <p className="muted">
-          A composição da Câmara e do Senado e os deputados por estado são um retrato da consulta de{" "}
-          {DATA_CONSULTA}. A coleta automática (várias vezes ao dia) entra na próxima fase do projeto.
+          A composição da Câmara e do Senado e os deputados por estado vêm direto das APIs de dados
+          abertos das duas Casas e são consultados de novo a cada 6 horas. Última consulta:{" "}
+          {formatarConsulta(composicao.consultadoEm)}.
+          {composicao.origem === "retrato" &&
+            " As fontes não responderam agora, então a página mostra a última consulta guardada."}
         </p>
       </section>
       <section className="card">

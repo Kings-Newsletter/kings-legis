@@ -22,10 +22,15 @@ este portal (Next.js na Vercel, cache na CDN)
 kingsnewsletter.com/legis e /radar
 ```
 
-- **Nenhuma coleta roda aqui.** O portal só lê do banco; a coleta fica nos módulos
-  `src/legis` e `src/radar` do [kings-worker](https://github.com/Kings-Newsletter/kings-worker).
-  O limite de CPU da Vercel é da conta inteira, então nada de chamadas a APIs externas
-  durante a visita.
+- **Dados oficiais direto da fonte.** A composição do Congresso, as proposições e a
+  tramitação vêm das APIs de dados abertos da Câmara (`dadosabertos.camara.leg.br/api/v2`)
+  e do Senado (`legis.senado.leg.br/dadosabertos/processo`), sem chave. Cada chamada fica
+  no cache do servidor (30 min para listas, 1 h para detalhes, 6 h para a composição) e as
+  páginas no cache da CDN: o limite de CPU da Vercel é da conta inteira, então a visita
+  quase nunca chega às fontes. No máximo 4 chamadas simultâneas por fonte, com nova
+  tentativa quando a Câmara responde 429.
+- **O que ainda depende do kings-worker:** relevância, explicação por IA, Radar e um
+  sitemap com todas as fichas; esses módulos (`src/legis`, `src/radar`) gravam no banco.
 - **Escrita no banco:** só o kings-worker e, no campo `explicacao`, o painel admin da newsletter.
 - **Coleções `news` e `sports`:** nunca são lidas nem alteradas por este projeto.
 
@@ -33,12 +38,15 @@ kingsnewsletter.com/legis e /radar
 
 | Caminho | O que é |
 | --- | --- |
-| `app/legis` | Início, proposições, agenda e `sitemap.xml` do Legis |
+| `app/legis` | Início, proposições (lista e ficha), agenda e `sitemap.xml` do Legis |
 | `app/radar` | Feed do Radar |
 | `components/layout` | Cabeçalho e rodapé |
 | `lib/site.ts` | Nome, URLs e navegação |
 | `lib/types.ts` | Formato dos documentos (o mesmo do kings-worker) |
 | `lib/db` | Conexão com o MongoDB, somente leitura |
+| `lib/legis` | Proposições e tramitação (`fontes/camara.ts`, `fontes/senado.ts`), tradução de situação para estágio, filtros e dados de exemplo |
+| `lib/composicao.ts` | Bancadas da Câmara e do Senado direto das APIs |
+| `components/proposicoes` | Item da lista, selo e trilha de estágio |
 | `app/globals.css` | Tema provisório, neutro e com cores frias, todo em variáveis CSS |
 
 Ainda não há logo: o nome aparece só em texto.
@@ -51,7 +59,8 @@ npm install
 npm run dev                  # http://localhost:3000/legis
 ```
 
-Sem `MONGODB_URI` as páginas mostram o estado vazio.
+As páginas leem direto da Câmara e do Senado. Para testar sem rede, com dados de
+exemplo (fictícios, nunca em produção), ponha `LEGIS_EXEMPLOS=1` no `.env.local`.
 
 ## Publicação
 

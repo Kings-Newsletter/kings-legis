@@ -33,6 +33,8 @@ const nextConfig: NextConfig = {
       { source: "/legis/:path*", headers: cdn(300) },
       { source: "/radar", headers: cdn(300) },
       { source: "/radar/:path*", headers: cdn(300) },
+      // O aquecimento diário (cron) precisa rodar sempre: nunca vem do cache da CDN.
+      { source: "/legis/api/aquecer", headers: [{ key: "Vercel-CDN-Cache-Control", value: "no-store" }] },
       {
         source: "/:path*",
         headers: [

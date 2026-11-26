@@ -58,8 +58,8 @@ export default async function PaginaPolitico({ params }: Props) {
                   : "As proposições mais recentes:"}
               </p>
               <ul className="projetos-lista">
-                {p.projetos.dados.itens.map((pr) => (
-                  <li key={`${pr.titulo}-${pr.data}`}>
+                {p.projetos.dados.itens.map((pr, i) => (
+                  <li key={`${pr.titulo}-${pr.data}-${i}`}>
                     <p className="projeto-titulo">
                       {pr.url ? (
                         <a href={pr.url} target="_blank" rel="noopener noreferrer">
@@ -77,6 +77,231 @@ export default async function PaginaPolitico({ params }: Props) {
             </>
           ) : (
             <Ausente bloco={p.projetos} />
+          )}
+        </section>
+      )}
+
+      {p.remuneracao && (
+        <section className="politico-secao" id="salario" aria-labelledby="salario-titulo">
+          <h2 id="salario-titulo">Salário e benefícios</h2>
+          {p.remuneracao.ok ? (
+            <>
+              <div className="politico-numeros">
+                <Numero
+                  rotulo="Subsídio mensal (bruto)"
+                  valor={REAL.format(p.remuneracao.dados.subsidio)}
+                  detalhe={`Desde ${p.remuneracao.dados.vigencia}, igual para todos os deputados e senadores`}
+                />
+                {p.remuneracao.dados.pagoNoMes && (
+                  <Numero
+                    rotulo={`Recebido em ${p.remuneracao.dados.pagoNoMes.referencia} (líquido)`}
+                    valor={REAL.format(p.remuneracao.dados.pagoNoMes.liquido)}
+                    detalhe={`Bruto: ${REAL.format(p.remuneracao.dados.pagoNoMes.bruto)}`}
+                  />
+                )}
+                {p.remuneracao.dados.beneficios.map((b) => (
+                  <Numero key={b.rotulo} rotulo={b.rotulo} valor={b.situacao} />
+                ))}
+              </div>
+              {p.remuneracao.dados.pagoNoMes?.previdencia != null && (
+                <>
+                  <h3>Contracheque de {p.remuneracao.dados.pagoNoMes.referencia}</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        <tr>
+                          <td>Remuneração bruta</td>
+                          <td className="num">{REAL.format(p.remuneracao.dados.pagoNoMes.bruto)}</td>
+                        </tr>
+                        <tr>
+                          <td>Contribuição previdenciária</td>
+                          <td className="num">{REAL.format(p.remuneracao.dados.pagoNoMes.previdencia)}</td>
+                        </tr>
+                        <tr>
+                          <td>Imposto de renda</td>
+                          <td className="num">{REAL.format(p.remuneracao.dados.pagoNoMes.imposto ?? 0)}</td>
+                        </tr>
+                        {!!p.remuneracao.dados.pagoNoMes.redutor && (
+                          <tr>
+                            <td>Redutor constitucional (teto)</td>
+                            <td className="num">{REAL.format(p.remuneracao.dados.pagoNoMes.redutor)}</td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td>
+                            <strong>Líquido</strong>
+                          </td>
+                          <td className="num">
+                            <strong>{REAL.format(p.remuneracao.dados.pagoNoMes.liquido)}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  {p.remuneracao.dados.pagoNoMes.fonte && (
+                    <p className="muted small">
+                      Fonte:{" "}
+                      <a href={p.remuneracao.dados.pagoNoMes.fonte.href} target="_blank" rel="noopener noreferrer">
+                        {p.remuneracao.dados.pagoNoMes.fonte.rotulo}
+                      </a>
+                      .
+                    </p>
+                  )}
+                </>
+              )}
+              {p.remuneracao.dados.recursos.length > 0 && (
+                <>
+                  <h3>Recursos usados em {p.remuneracao.dados.anoRecursos ?? "no ano"}, segundo o Senado</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        {p.remuneracao.dados.recursos.map((r) => (
+                          <tr key={r.rotulo}>
+                            <td>{r.rotulo}</td>
+                            <td className="num">{REAL.format(r.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+              <p className="muted small">
+                {p.remuneracao.dados.nota} Fonte do subsídio:{" "}
+                <a href={p.remuneracao.dados.base.href} target="_blank" rel="noopener noreferrer">
+                  {p.remuneracao.dados.base.rotulo}
+                </a>
+                .
+              </p>
+            </>
+          ) : (
+            <Ausente bloco={p.remuneracao} />
+          )}
+        </section>
+      )}
+
+      {p.gabinete && (
+        <section className="politico-secao" id="gabinete" aria-labelledby="gabinete-titulo">
+          <h2 id="gabinete-titulo">Quem trabalha no gabinete</h2>
+          {p.gabinete.ok ? (
+            <>
+              <div className="politico-numeros">
+                <Numero rotulo="Pessoas" valor={NUM.format(p.gabinete.dados.pessoas.length)} />
+                {p.gabinete.dados.porLocal.length > 1 &&
+                  p.gabinete.dados.porLocal.map((l) => <Numero key={l.local} rotulo={l.local} valor={NUM.format(l.n)} />)}
+                {p.gabinete.dados.totalBruto != null && (
+                  <Numero
+                    rotulo={`Folha bruta em ${p.gabinete.dados.referencia}`}
+                    valor={REAL_CURTO.format(p.gabinete.dados.totalBruto)}
+                  />
+                )}
+              </div>
+              <div className="tabela-rolagem tabela-alta">
+                <table className="tabela">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Cargo</th>
+                      {p.gabinete.dados.porLocal.length > 1 && <th>Onde</th>}
+                      <th>Desde</th>
+                      {p.gabinete.dados.referencia ? (
+                        <>
+                          <th className="num">Bruto</th>
+                          <th className="num">Líquido</th>
+                        </>
+                      ) : (
+                        <th className="num">Vencimento básico</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.gabinete.dados.pessoas.map((g, i) => (
+                      <tr key={`${g.nome}-${i}`}>
+                        <td>{g.nome}</td>
+                        <td>{g.cargo}</td>
+                        {p.gabinete!.ok && p.gabinete!.dados.porLocal.length > 1 && <td>{g.local}</td>}
+                        <td>{g.desde ?? "—"}</td>
+                        {p.gabinete!.ok && p.gabinete!.dados.referencia ? (
+                          <>
+                            <td className="num">{g.bruto != null ? REAL.format(g.bruto) : "—"}</td>
+                            <td className="num">{g.liquido != null ? REAL.format(g.liquido) : "—"}</td>
+                          </>
+                        ) : (
+                          <td className="num">{g.vencimentoTabela != null ? REAL.format(g.vencimentoTabela) : "—"}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="muted small">
+                {p.gabinete.dados.nota} Fonte:{" "}
+                <a href={p.gabinete.dados.fonte.href} target="_blank" rel="noopener noreferrer">
+                  {p.gabinete.dados.fonte.rotulo}
+                </a>
+                .
+              </p>
+            </>
+          ) : (
+            <Ausente bloco={p.gabinete} />
+          )}
+        </section>
+      )}
+
+      {p.emendas && (
+        <section className="politico-secao" id="emendas" aria-labelledby="emendas-titulo">
+          <h2 id="emendas-titulo">Emendas parlamentares</h2>
+          {p.emendas.ok ? (
+            <>
+              <div className="politico-numeros">
+                <Numero rotulo={`Empenhado em ${p.emendas.dados.anos.join(" e ")}`} valor={REAL_CURTO.format(p.emendas.dados.empenhado)} />
+                <Numero rotulo="Pago" valor={REAL_CURTO.format(p.emendas.dados.pago)} detalhe="inclui restos a pagar" />
+              </div>
+              <h3>Para onde foi o dinheiro pago</h3>
+              <div className="tabela-rolagem">
+                <table className="tabela">
+                  <thead>
+                    <tr>
+                      <th>Localidade do gasto</th>
+                      <th className="num">Emendas</th>
+                      <th className="num">Pago</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.emendas.dados.porLocal.map((l) => (
+                      <tr key={l.local}>
+                        <td>{l.local}</td>
+                        <td className="num">{NUM.format(l.n)}</td>
+                        <td className="num">{REAL.format(l.pago)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <h3>Por área</h3>
+              <div className="tabela-rolagem">
+                <table className="tabela">
+                  <tbody>
+                    {p.emendas.dados.porFuncao.map((f) => (
+                      <tr key={f.funcao}>
+                        <td>{f.funcao}</td>
+                        <td className="num">{NUM.format(f.n)}</td>
+                        <td className="num">{REAL.format(f.pago)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="muted small">
+                Fonte:{" "}
+                <a href="https://portaldatransparencia.gov.br/emendas" target="_blank" rel="noopener noreferrer">
+                  Portal da Transparência (CGU)
+                </a>
+                .
+              </p>
+            </>
+          ) : (
+            <Ausente bloco={p.emendas} />
           )}
         </section>
       )}
@@ -141,8 +366,8 @@ export default async function PaginaPolitico({ params }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {p.eleicoes.map((e) => (
-                    <tr key={`${e.ano}-${e.cargo}`}>
+                  {p.eleicoes.map((e, i) => (
+                    <tr key={`${e.ano}-${e.cargo}-${i}`}>
                       <td>{e.ano}</td>
                       <td>{e.cargo}</td>
                       <td>{e.partido}</td>
@@ -157,6 +382,131 @@ export default async function PaginaPolitico({ params }: Props) {
         </section>
       )}
 
+      {p.contas && (
+        <section className="politico-secao" id="contas" aria-labelledby="contas-titulo">
+          <h2 id="contas-titulo">Contas da campanha</h2>
+          {p.contas.ok ? (
+            <>
+              <div className="politico-numeros">
+                <Numero rotulo={`Recebido na campanha de ${p.contas.dados.ano}`} valor={REAL_CURTO.format(p.contas.dados.recebido)} />
+                <Numero rotulo="Gasto" valor={REAL_CURTO.format(p.contas.dados.gasto)} />
+                {p.contas.dados.limite != null && (
+                  <Numero
+                    rotulo="Limite de gastos"
+                    valor={REAL_CURTO.format(p.contas.dados.limite)}
+                    detalhe={p.contas.dados.limite ? `${pct(p.contas.dados.gasto, p.contas.dados.limite)} usado` : undefined}
+                  />
+                )}
+              </div>
+
+              {p.contas.dados.origens.length > 0 && (
+                <>
+                  <h3>De onde veio o dinheiro</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        {p.contas.dados.origens.map((o) => (
+                          <tr key={o.rotulo}>
+                            <td>{o.rotulo}</td>
+                            <td className="num">{NUM.format(o.n)}</td>
+                            <td className="num">{REAL.format(o.valor)}</td>
+                            <td className="num">{pct(o.valor, p.contas!.ok ? p.contas!.dados.recebido : 0)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {p.contas.dados.fundos.length > 0 && (
+                <>
+                  <h3>Dinheiro público e outros recursos usados nas despesas</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        {p.contas.dados.fundos.map((f) => (
+                          <tr key={f.rotulo}>
+                            <td>{f.rotulo}</td>
+                            <td className="num">{REAL.format(f.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {p.contas.dados.doadores.length > 0 && (
+                <>
+                  <h3>Maiores doadores</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        {p.contas.dados.doadores.map((d, i) => (
+                          <tr key={`${d.nome}-${i}`}>
+                            <td>{d.nome}</td>
+                            <td className="num">{NUM.format(d.n)}</td>
+                            <td className="num">{REAL.format(d.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {p.contas.dados.despesasPorTipo.length > 0 && (
+                <>
+                  <h3>Com o que gastou</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        {p.contas.dados.despesasPorTipo.map((d) => (
+                          <tr key={d.tipo}>
+                            <td>{d.tipo}</td>
+                            <td className="num">{NUM.format(d.n)}</td>
+                            <td className="num">{REAL.format(d.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {p.contas.dados.fornecedores.length > 0 && (
+                <>
+                  <h3>Maiores fornecedores</h3>
+                  <div className="tabela-rolagem">
+                    <table className="tabela">
+                      <tbody>
+                        {p.contas.dados.fornecedores.map((f, i) => (
+                          <tr key={`${f.nome}-${i}`}>
+                            <td>{f.nome}</td>
+                            <td className="num">{NUM.format(f.n)}</td>
+                            <td className="num">{REAL.format(f.valor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              <p className="muted small">
+                Valores declarados à Justiça Eleitoral na prestação de contas
+                {p.contas.dados.atualizadaEm ? `, atualizada em ${p.contas.dados.atualizadaEm}` : ""}. Doadores e
+                fornecedores aparecem só pelo nome.
+              </p>
+            </>
+          ) : (
+            <Ausente bloco={p.contas} />
+          )}
+        </section>
+      )}
+
+      {p.faltando.length > 0 && (
       <section className="politico-secao politico-faltando" id="faltando" aria-labelledby="faltando-titulo">
         <h2 id="faltando-titulo">O que ainda não está aqui</h2>
         <p className="muted">
@@ -176,6 +526,7 @@ export default async function PaginaPolitico({ params }: Props) {
           ))}
         </ul>
       </section>
+      )}
 
       <footer className="politico-fontes">
         <p>
@@ -248,9 +599,13 @@ function Indice({ p }: { p: Perfil }) {
     p.despesas && { href: "#gastos", rotulo: "Gastos" },
     p.votacoes && { href: "#votacoes", rotulo: "Votações e presença" },
     p.projetos && { href: "#projetos", rotulo: "Projetos" },
+    p.remuneracao && { href: "#salario", rotulo: "Salário e benefícios" },
+    p.gabinete && { href: "#gabinete", rotulo: "Gabinete" },
+    p.emendas && { href: "#emendas", rotulo: "Emendas" },
     p.bens && { href: "#bens", rotulo: "Bens" },
     (p.campanha.length > 0 || p.eleicoes.length > 0) && { href: "#eleicoes", rotulo: "Eleições" },
-    { href: "#faltando", rotulo: "O que falta" },
+    p.contas && { href: "#contas", rotulo: "Contas da campanha" },
+    p.faltando.length > 0 && { href: "#faltando", rotulo: "O que falta" },
   ].filter((x): x is { href: string; rotulo: string } => Boolean(x));
   return (
     <nav className="politico-indice" aria-label="Nesta página">

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import { DEPUTADOS_POR_UF } from "@/lib/bancadas";
+import { useComposicao } from "@/components/composicao-contexto";
 import { ESTADOS, REGIOES, type Regiao } from "@/lib/brasil";
 
 /** Remove acentos para a busca: "sao" encontra "São Paulo". */
@@ -25,6 +25,7 @@ interface Props {
  * (setas, Enter e Esc). Substitui o <select> nativo, que não aceita estilo nas opções.
  */
 export function SeletorEstado({ valor, aoEscolher }: Props) {
+  const DEPUTADOS_POR_UF = useComposicao().deputadosPorUf;
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [ativo, setAtivo] = useState(0);

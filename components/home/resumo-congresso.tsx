@@ -1,13 +1,15 @@
 import Link from "next/link";
 
-import { COMPOSICAO, DATA_CONSULTA } from "@/lib/bancadas";
+import { formatarConsulta } from "@/lib/bancadas";
+import { buscarComposicao } from "@/lib/composicao";
 
 /**
  * Resumo da Câmara na página inicial: uma barra com as bancadas, do maior partido para
  * o menor, e um atalho para a página de partidos (com o arco de cadeiras completo).
  */
-export function ResumoCongresso() {
-  const camara = COMPOSICAO.camara;
+export async function ResumoCongresso() {
+  const composicao = await buscarComposicao();
+  const camara = composicao.camara;
   const maiores = camara.grupos.slice(0, 5);
   const resto = camara.grupos.slice(5).reduce((t, g) => t + g.n, 0);
 
@@ -42,7 +44,7 @@ export function ResumoCongresso() {
       <Link href="/legis/partidos" className="btn btn-primario resumo-link">
         Ver cada partido e cada cadeira →
       </Link>
-      <p className="muted small">Fonte: Câmara dos Deputados, dados abertos, consulta em {DATA_CONSULTA}.</p>
+      <p className="muted small">Fonte: Câmara dos Deputados, dados abertos, consulta em {formatarConsulta(composicao.consultadoEm)}.</p>
     </article>
   );
 }

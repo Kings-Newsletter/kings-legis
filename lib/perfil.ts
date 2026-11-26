@@ -1,6 +1,21 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 import { COR_PARTIDO } from "./bancadas";
+import {
+  candidaturaTse,
+  contasCampanhaTse,
+  emendasDoParlamentar,
+  gabineteCamara,
+  gabineteSenado,
+  remuneracaoCamara,
+  remuneracaoSenado,
+  type ContasCampanha,
+  type Emendas,
+  type Gabinete,
+  type Remuneracao,
+} from "./perfil-extra";
 import { nomeProprio } from "./tse";
 
 /**
@@ -110,6 +125,11 @@ export interface Perfil {
   votacoes: Bloco<Votacoes> | null;
   projetos: Bloco<Projetos> | null;
   bens: Bloco<Bens> | null;
+  remuneracao: Bloco<Remuneracao> | null;
+  gabinete: Bloco<Gabinete> | null;
+  emendas: Bloco<Emendas> | null;
+  /** Prestação de contas da campanha no TSE. */
+  contas: Bloco<ContasCampanha> | null;
   campanha: { rotulo: string; valor: number }[];
   eleicoes: Eleicao[];
   /** O que um eleitor deveria poder ver e esta ficha ainda não mostra, com onde procurar. */
@@ -361,7 +381,15 @@ async function perfilCamara(id: string, chave: string): Promise<Perfil | null> {
   }
   const s = d.ultimoStatus;
   const g = s.gabinete ?? {};
-  const [despesas, votacoes, projetos] = await Promise.all([despesasCamara(id), votacoesCamara(id), projetosCamara(id)]);
+  const [despesas, votacoes, projetos, gabinete, emendas, remuneracao, tse] = await Promise.all([
+    despesasCamara(id),
+    votacoesCamara(id),
+    projetosCamara(id),
+    gabineteCamara(id),
+    emendasDoParlamentar(s.nomeEleitoral || s.nome),
+    remuneracaoCamara(id),
+    doTse({ uf: s.siglaUf, cargo: 6, nomeCompleto: d.nomeCivil, nomeUrna: s.nomeEleitoral || s.nome, anos: [2026, 2022] }),
+  ]);
   const pagina = `https://www.camara.leg.br/deputados/${id}`;
   return {
     id: chave,
@@ -386,46 +414,66 @@ async function perfilCamara(id: string, chave: string): Promise<Perfil | null> {
       g.telefone && { rotulo: "Telefone", valor: `(61) ${g.telefone}`, href: `tel:+5561${g.telefone.replace(/\D/g, "")}` },
       d.urlWebsite && { rotulo: "Site", valor: d.urlWebsite, href: d.urlWebsite },
       ...lista(d.redeSocial).map((r) => ({ rotulo: "Rede social", valor: r.replace(/^https?:\/\/(www\.)?/, ""), href: r })),
-    ].filter((x): x is { rotulo: string; valor: string; href?: string } => Boolean(x)),
+    ].filter((x): x is { rotulo: string; valor: string; href: string } => Boolean(x)),
     despesas,
     votacoes,
     projetos,
-    bens: null,
-    campanha: [],
-    eleicoes: [],
+    bens: tse.bens,
+    remuneracao,
+    gabinete,
+    emendas,
+    contas: tse.contas,
+    campanha: tse.campanha,
+    eleicoes: tse.eleicoes,
     faltando: [
-      {
-        item: "Salário (subsídio) e descontos deste deputado",
-        porque: "A API de dados abertos não traz a remuneração por pessoa.",
-        onde: { rotulo: "Portal da Transparência da Câmara", href: "https://www.camara.leg.br/transparencia/" },
+      !(remuneracao.ok && remuneracao.dados.pagoNoMes) && {
+        item: "Descontos no salário deste deputado (faltas, imposto)",
+        porque: "A página oficial de remuneração do deputado não respondeu agora.",
+        onde: { rotulo: "Remuneração na página do deputado", href: `${pagina}/remuneracao` },
       },
-      {
+      !(remuneracao.ok && remuneracao.dados.beneficios.length) && {
         item: "Auxílio-moradia ou apartamento funcional",
-        porque: "Não está na API por deputado; a Câmara divulga em relatórios à parte.",
-        onde: { rotulo: "Transparência da Câmara", href: "https://www.camara.leg.br/transparencia/" },
+        porque: "A página oficial do deputado não respondeu agora.",
+        onde: { rotulo: "Página oficial do deputado", href: pagina },
       },
-      {
-        item: "Verba de gabinete: quem trabalha no gabinete e quanto ganha",
-        porque: "Ainda não coletamos esses dados.",
-        onde: { rotulo: "Pessoal de gabinete na página do deputado", href: pagina },
+      !(gabinete.ok && gabinete.dados.pessoas.some((g) => g.liquido != null)) && {
+        item: "Quanto cada secretário parlamentar recebe",
+        porque: "A página de pessoal de gabinete não respondeu agora; a ficha mostra só o nível de cada um.",
+        onde: { rotulo: "Pessoal de gabinete na página do deputado", href: `${pagina}/pessoal-gabinete` },
       },
-      {
-        item: "Emendas parlamentares indicadas e pagas",
-        porque: "Estão no Portal da Transparência do governo federal, que ainda não coletamos.",
-        onde: { rotulo: "Portal da Transparência: emendas", href: "https://portaldatransparencia.gov.br/emendas" },
-      },
-      {
-        item: "Bens declarados e contas de campanha",
-        porque: "Ficam no TSE, na candidatura de 2022, e ainda não ligamos as duas fontes.",
-        onde: { rotulo: "DivulgaCandContas (TSE)", href: "https://divulgacandcontas.tse.jus.br/" },
-      },
-    ],
+    ].filter((f): f is { item: string; porque: string; onde: Link } => Boolean(f)),
     fontes: [
       { rotulo: "Câmara dos Deputados: dados abertos", href: "https://dadosabertos.camara.leg.br/" },
+      { rotulo: "Tabelas de remuneração da Câmara", href: "https://www2.camara.leg.br/transparencia/recursos-humanos/remuneracao/tabelas-de-remuneracao" },
       { rotulo: "Página oficial do deputado", href: pagina },
     ],
     consultadoEm: hoje(),
   };
+}
+
+/**
+ * Bens declarados, limites de campanha e eleições anteriores de um parlamentar, a partir
+ * da candidatura no TSE (a mesma ficha usada para os eleitos estaduais e municipais).
+ */
+async function doTse(
+  busca: Parameters<typeof candidaturaTse>[0],
+): Promise<Pick<Perfil, "bens" | "campanha" | "eleicoes" | "contas"> & { ficha: string | null }> {
+  const c = await candidaturaTse(busca).catch(() => null);
+  const t = c ? await perfilTse(String(c.ano), c.eleicao, busca.uf, String(c.id), "tse").catch(() => null) : null;
+  if (!c || !t) {
+    return {
+      bens: {
+        ok: false,
+        motivo: "Não achamos a candidatura no TSE pelo nome civil (pode ter mudado de nome ou de estado).",
+        onde: { rotulo: "DivulgaCandContas (TSE)", href: "https://divulgacandcontas.tse.jus.br/" },
+      },
+      campanha: [],
+      eleicoes: [],
+      contas: null,
+      ficha: null,
+    };
+  }
+  return { bens: t.bens, campanha: t.campanha, eleicoes: t.eleicoes, contas: t.contas, ficha: t.urlOficial };
 }
 
 // ---------------------------------------------------------------- Senado
@@ -556,45 +604,102 @@ async function projetosSenado(cod: string): Promise<Bloco<Projetos>> {
   }
 }
 
+/**
+ * Despesas da cota (CEAPS) de todos os senadores num ano, compactadas. O arquivo do
+ * Senado tem cerca de 7 MB (acima do limite de 2 MB do cache do fetch): é baixado no
+ * máximo uma vez por dia e guardado com tipos e fornecedores num dicionário, cada
+ * despesa como [data, mês, tipo, fornecedor, valor].
+ */
+interface CeapsCompacto {
+  tipos: string[];
+  fornecedores: [string, string | null][];
+  /** Código do senador → despesas. */
+  porSenador: Record<string, [string | null, number | null, number, number, number][]>;
+  /** Nome normalizado → código, para quando a linha não traz o código. */
+  codigos: Record<string, string>;
+}
+
+const chaveNome = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
+const ceapsSenado = unstable_cache(
+  async (ano: number): Promise<CeapsCompacto> => {
+    const r = await fetch(`${SENADO_ADM}/senadores/despesas_ceaps/${ano}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!r.ok) throw new Error(`${new URL(r.url).host} respondeu ${r.status}`);
+    const dados = (await r.json()) as Record<string, unknown>[] | { despesas?: Record<string, unknown>[] };
+    const linhas = Array.isArray(dados) ? dados : lista(dados.despesas);
+
+    const texto = (l: Record<string, unknown>, ...ks: string[]) => {
+      for (const k of ks) if (typeof l[k] === "string" && l[k]) return l[k] as string;
+      return null;
+    };
+    const tipos: string[] = [];
+    const idTipo = new Map<string, number>();
+    const fornecedores: [string, string | null][] = [];
+    const idForn = new Map<string, number>();
+    const porSenador: CeapsCompacto["porSenador"] = {};
+    const codigos: Record<string, string> = {};
+
+    for (const l of linhas) {
+      const nome = texto(l, "nomeSenador", "senador", "nomeParlamentar");
+      const codigo = l.codSenador ?? l.codigoSenador ?? l.codigoParlamentar;
+      const cod = codigo != null ? String(codigo) : nome ? `nome:${chaveNome(nome)}` : "";
+      if (!cod) continue;
+      if (nome && codigo != null) codigos[chaveNome(nome)] = String(codigo);
+
+      const tipo = texto(l, "tipoDespesa", "tipo", "descricaoTipoDespesa") ?? "Outros";
+      if (!idTipo.has(tipo)) idTipo.set(tipo, tipos.push(tipo) - 1);
+      const forn = texto(l, "fornecedor", "nomeFornecedor") ?? "—";
+      const doc = texto(l, "cpfCnpj", "cnpjCpf", "cnpjCpfFornecedor");
+      const kForn = `${forn}|${doc ?? ""}`;
+      if (!idForn.has(kForn)) idForn.set(kForn, fornecedores.push([forn, doc]) - 1);
+
+      const data = texto(l, "data", "dataDocumento", "dataEmissao");
+      const mes = Number(l.mes ?? (data ? data.slice(5, 7) : NaN));
+      (porSenador[cod] ??= []).push([
+        data ? data.slice(0, 10) : null,
+        Number.isFinite(mes) ? mes : null,
+        idTipo.get(tipo)!,
+        idForn.get(kForn)!,
+        Math.round(Number(l.valorReembolsado ?? l.valor ?? 0) * 100) / 100,
+      ]);
+    }
+    return { tipos, fornecedores, porSenador, codigos };
+  },
+  ["senado-ceaps-v1"],
+  { revalidate: UM_DIA },
+);
+
+/** Carrega de antemão a cota do ano atual e do anterior (usado pela rota de aquecimento). */
+export async function aquecerCotaSenado(): Promise<number> {
+  const ano = new Date().getFullYear();
+  const anos = await Promise.allSettled([ceapsSenado(ano), ceapsSenado(ano - 1)]);
+  return anos.filter((a) => a.status === "fulfilled").length;
+}
+
 async function despesasSenado(cod: string, nome: string): Promise<Bloco<Despesas>> {
   const onde = {
     rotulo: "Cota parlamentar no Portal da Transparência do Senado",
     href: "https://www6g.senado.leg.br/transparencia/sen/",
   };
   const anoAtual = new Date().getFullYear();
-  const chaveNome = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
   try {
     for (const ano of [anoAtual, anoAtual - 1]) {
-      const { dados } = await obter<Record<string, unknown>[] | { despesas?: Record<string, unknown>[] }>(
-        `${SENADO_ADM}/senadores/despesas_ceaps/${ano}`,
-        UM_DIA,
-        45000,
-      );
-      const linhas = Array.isArray(dados) ? dados : lista(dados.despesas);
-      const doSenador = linhas.filter((l) => {
-        const codigo = l.codSenador ?? l.codigoSenador ?? l.codigoParlamentar;
-        if (codigo != null) return String(codigo) === cod;
-        const n = l.nomeSenador ?? l.senador ?? l.nomeParlamentar;
-        return typeof n === "string" && chaveNome(n) === chaveNome(nome);
-      });
-      if (!doSenador.length) continue;
-      const texto = (l: Record<string, unknown>, ...ks: string[]) => {
-        for (const k of ks) if (typeof l[k] === "string" && l[k]) return l[k] as string;
-        return null;
-      };
-      const itens: Despesa[] = doSenador.map((l) => {
-        const data = texto(l, "data", "dataDocumento", "dataEmissao");
-        const mes = Number(l.mes ?? (data ? data.slice(5, 7) : NaN));
-        return {
-          data: data ? data.slice(0, 10) : null,
-          mes: Number.isFinite(mes) ? mes : null,
-          tipo: texto(l, "tipoDespesa", "tipo", "descricaoTipoDespesa") ?? "Outros",
-          fornecedor: texto(l, "fornecedor", "nomeFornecedor") ?? "—",
-          documentoFornecedor: texto(l, "cpfCnpj", "cnpjCpf", "cnpjCpfFornecedor"),
-          valor: Number(l.valorReembolsado ?? l.valor ?? 0),
-          url: null,
-        };
-      });
+      const c = await ceapsSenado(ano);
+      const linhas = c.porSenador[cod] ?? c.porSenador[c.codigos[chaveNome(nome)] ?? ""] ?? c.porSenador[`nome:${chaveNome(nome)}`];
+      if (!linhas?.length) continue;
+      const itens: Despesa[] = linhas.map(([data, mes, tipo, forn, valor]) => ({
+        data,
+        mes,
+        tipo: c.tipos[tipo] ?? "Outros",
+        fornecedor: c.fornecedores[forn]?.[0] ?? "—",
+        documentoFornecedor: c.fornecedores[forn]?.[1] ?? null,
+        valor,
+        url: null,
+      }));
       return { ok: true, dados: resumirDespesas(ano, "Cota parlamentar (CEAPS)", itens) };
     }
     return {
@@ -618,10 +723,14 @@ async function perfilSenado(cod: string, chave: string): Promise<Perfil | null> 
   const b = p.DadosBasicosParlamentar ?? {};
   const partido = i.SiglaPartidoParlamentar ?? "S/Partido";
   const pagina = i.UrlPaginaParlamentar?.replace(/^http:/, "https:") ?? `https://www25.senado.leg.br/web/senadores/senador/-/perfil/${cod}`;
-  const [despesas, votacoes, projetos] = await Promise.all([
+  const [despesas, votacoes, projetos, remuneracao, gabinete, emendas, tse] = await Promise.all([
     despesasSenado(cod, i.NomeParlamentar),
     votacoesSenado(cod),
     projetosSenado(cod),
+    remuneracaoSenado(cod, i.NomeCompletoParlamentar ?? null),
+    gabineteSenado(i.NomeParlamentar, i.NomeCompletoParlamentar ?? null),
+    emendasDoParlamentar(i.NomeParlamentar),
+    doTse({ uf: i.UfParlamentar, cargo: 5, nomeCompleto: i.NomeCompletoParlamentar ?? null, nomeUrna: i.NomeParlamentar, anos: [2026, 2022, 2018] }),
   ]);
   return {
     id: chave,
@@ -645,37 +754,27 @@ async function perfilSenado(cod: string, chave: string): Promise<Perfil | null> 
         valor: `(61) ${t.NumeroTelefone}`,
         href: `tel:+5561${t.NumeroTelefone.replace(/\D/g, "")}`,
       })),
-    ].filter((x): x is { rotulo: string; valor: string; href?: string } => Boolean(x)),
+    ].filter((x): x is { rotulo: string; valor: string; href: string } => Boolean(x)),
     despesas,
     votacoes,
     projetos,
-    bens: null,
-    campanha: [],
-    eleicoes: [],
+    bens: tse.bens,
+    remuneracao,
+    gabinete,
+    emendas,
+    contas: tse.contas,
+    campanha: tse.campanha,
+    eleicoes: tse.eleicoes,
     faltando: [
       {
-        item: "Salário (subsídio) e descontos deste senador",
-        porque: "Não vem nos dados abertos por senador.",
-        onde: { rotulo: "Portal da Transparência do Senado", href: "https://www6g.senado.leg.br/transparencia/sen/" },
-      },
-      {
-        item: "Auxílio-moradia, imóvel funcional e assistência à saúde",
-        porque: "O Senado publica em relatórios e planilhas à parte, nem sempre por senador.",
+        item: "Assistência à saúde do senador",
+        porque: "O Senado divulga o plano de saúde em relatórios gerais, não por senador.",
         onde: { rotulo: "Transparência do Senado", href: "https://www12.senado.leg.br/transparencia" },
-      },
-      {
-        item: "Servidores do gabinete e quanto ganham",
-        porque: "Ainda não coletamos esses dados.",
-        onde: { rotulo: "Transparência do Senado", href: "https://www12.senado.leg.br/transparencia" },
-      },
-      {
-        item: "Emendas parlamentares indicadas e pagas",
-        porque: "Estão no Portal da Transparência do governo federal, que ainda não coletamos.",
-        onde: { rotulo: "Portal da Transparência: emendas", href: "https://portaldatransparencia.gov.br/emendas" },
       },
     ],
     fontes: [
       { rotulo: "Senado Federal: dados abertos", href: "https://www12.senado.leg.br/dados-abertos" },
+      { rotulo: "Senado: dados abertos administrativos", href: "https://adm.senado.gov.br/adm-dadosabertos/swagger-ui/index.html" },
       { rotulo: "Página oficial do senador", href: pagina },
     ],
     consultadoEm: hoje(),
@@ -698,8 +797,9 @@ interface CandidatoTse {
   gastoCampanha2T?: number;
   totalDeBens?: number;
   bens?: { descricao?: string; descricaoDeTipoDeBem?: string; valor?: number }[];
-  partido?: { sigla?: string };
-  cargo?: { nome?: string };
+  numero?: number;
+  partido?: { sigla?: string; numero?: number };
+  cargo?: { nome?: string; codigo?: number };
   emails?: string[] | null;
   sites?: string[] | null;
   fotoUrl?: string;
@@ -719,6 +819,19 @@ async function perfilTse(ano: string, eleicao: string, unidade: string, idCand: 
   const ficha = `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${ano}/${eleicao}/${unidade}/${idCand}`;
   const bens = lista(c.bens);
   const ehMunicipal = /^\d+$/.test(unidade);
+  const contas =
+    c.cargo?.codigo && c.partido?.numero && c.numero
+      ? await contasCampanhaTse({
+          ano: Number(ano),
+          eleicao,
+          uf: unidade,
+          cargo: c.cargo.codigo,
+          partido: c.partido.numero,
+          numero: c.numero,
+          id: idCand,
+          ficha,
+        })
+      : null;
   return {
     id: chave,
     fonte: "tse",
@@ -743,6 +856,10 @@ async function perfilTse(ano: string, eleicao: string, unidade: string, idCand: 
     despesas: null,
     votacoes: null,
     projetos: null,
+    remuneracao: null,
+    gabinete: null,
+    emendas: null,
+    contas,
     bens: bens.length
       ? {
           ok: true,
@@ -768,11 +885,6 @@ async function perfilTse(ano: string, eleicao: string, unidade: string, idCand: 
       {
         item: "Salário, verbas de gabinete e diárias",
         porque: "Ficam no portal da transparência de cada assembleia, câmara ou governo, sem um padrão nacional.",
-      },
-      {
-        item: "Receitas e despesas declaradas da campanha",
-        porque: "O TSE publica na prestação de contas; ainda não lemos esses arquivos.",
-        onde: { rotulo: "Ficha no TSE", href: ficha },
       },
     ],
     fontes: [

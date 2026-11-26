@@ -2,9 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Agenda } from "@/components/home/agenda";
-import { MapaEstados } from "@/components/home/mapa-estados";
+import { MapaLazy } from "@/components/home/mapa-lazy";
 import { ResumoCongresso } from "@/components/home/resumo-congresso";
+import { ItemProposicao } from "@/components/proposicoes/item-proposicao";
+import { buscarComposicao } from "@/lib/composicao";
+import { proximasSessoes } from "@/lib/legis/agenda";
+import { avancosDaSemana } from "@/lib/legis/proposicoes";
 import { absoluteUrl } from "@/lib/site";
+
+/** "Avançaram esta semana" vem direto da Câmara e do Senado; a página é refeita a cada 5 minutos. */
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "O que o Congresso decidiu, em linguagem clara",
@@ -15,12 +22,6 @@ export const metadata: Metadata = {
 
 const etapas = ["Apresentada", "Comissões", "Plenário · 1ª Casa", "2ª Casa", "Sanção", "Lei"];
 
-const numeros = [
-  { valor: "513", rotulo: "deputados federais" },
-  { valor: "81", rotulo: "senadores" },
-  { valor: "27", rotulo: "unidades da federação" },
-  { valor: "21", rotulo: "partidos com deputados" },
-];
 
 const radar = [
   { fonte: "Diário Oficial da União", texto: "Leis, decretos, medidas provisórias e nomeações do dia." },
@@ -28,7 +29,23 @@ const radar = [
   { fonte: "TSE", texto: "Sessões e decisões da Justiça Eleitoral." },
 ];
 
-export default function LegisHome() {
+export default async function LegisHome() {
+  const [avancos, composicao, agendaCamara, agendaSenado] = await Promise.all([
+    avancosDaSemana(5),
+    buscarComposicao(),
+    proximasSessoes("camara"),
+    proximasSessoes("senado"),
+  ]);
+  const numeros = [
+    { valor: String(composicao.camara.total), rotulo: "deputados federais em exercício" },
+    { valor: String(composicao.senado.total), rotulo: "senadores em exercício" },
+    { valor: "27", rotulo: "unidades da federação" },
+    {
+      valor: String(composicao.camara.grupos.filter((g) => g.sigla !== "S/Partido").length),
+      rotulo: "partidos com deputados",
+    },
+  ];
+
   return (
     <div className="container home">
       <section className="hero">
@@ -62,34 +79,46 @@ export default function LegisHome() {
       </section>
 
       <section className="duas-colunas">
-        <Agenda />
+        <Agenda camara={agendaCamara} senado={agendaSenado} />
         <section className="card" aria-labelledby="avancos-titulo">
           <div className="card-head">
             <h2 id="avancos-titulo">Avançaram esta semana</h2>
             <Link href="/legis/proposicoes">Ver todas</Link>
           </div>
-          <p className="muted">
-            Cada proposição vai mostrar em que etapa está, do protocolo até virar lei:
-          </p>
-          <div className="etapas" aria-hidden="true">
-            {etapas.map((e, i) => (
-              <span key={e} className={i < 2 ? "etapa feita" : i === 2 ? "etapa atual" : "etapa"} />
-            ))}
-          </div>
-          <div className="etapas-nomes">
-            {etapas.map((e) => (
-              <span key={e}>{e}</span>
-            ))}
-          </div>
-          <div className="vazio">
-            <p className="muted">
-              A lista entra quando a coleta da Câmara estiver ligada.
-            </p>
-          </div>
+          {avancos.itens.length > 0 ? (
+            <ul className="proposicoes avancos">
+              {avancos.itens.map((item) => (
+                <ItemProposicao key={item._id} item={item} compacto />
+              ))}
+            </ul>
+          ) : (
+            <>
+              <p className="muted">
+                Cada proposição mostra em que etapa está, do protocolo até virar lei:
+              </p>
+              <div className="etapas" aria-hidden="true">
+                {etapas.map((e, i) => (
+                  <span key={e} className={i < 2 ? "etapa feita" : i === 2 ? "etapa atual" : "etapa"} />
+                ))}
+              </div>
+              <div className="etapas-nomes">
+                {etapas.map((e) => (
+                  <span key={e}>{e}</span>
+                ))}
+              </div>
+              <div className="vazio">
+                <p className="muted">
+                  {avancos.erro
+                    ? "A Câmara e o Senado não responderam agora. Tente de novo em alguns minutos."
+                    : "Nenhuma proposição mudou de etapa nos últimos 7 dias."}
+                </p>
+              </div>
+            </>
+          )}
         </section>
       </section>
 
-      <MapaEstados />
+      <MapaLazy />
 
       <section aria-labelledby="radar-titulo" className="radar">
         <div className="card-head">
