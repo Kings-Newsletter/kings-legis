@@ -6,6 +6,9 @@ import type { NextConfig } from "next";
  * basePath: as rotas já nascem em app/legis e app/radar.
  */
 const nextConfig: NextConfig = {
+  // Sirve os assets do Next.js diretamente deste projeto, mesmo quando o HTML
+  // é acessado pelo rewrite /legis no domínio principal.
+  assetPrefix: "https://kings-legis.vercel.app",
   reactStrictMode: true,
   poweredByHeader: false,
   async redirects() {
