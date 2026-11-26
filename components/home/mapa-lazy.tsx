@@ -3,17 +3,23 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 
+import { CarregandoLogo } from "@/components/carregando-logo";
+
+/** Espaço do mapa enquanto ele carrega: mesma altura, para a página não pular. */
+function MapaCarregando() {
+  return (
+    <section className="card mapa-lazy-carregando" aria-busy="true" aria-label="Carregando o mapa">
+      <CarregandoLogo rotulo="Carregando o mapa" />
+    </section>
+  );
+}
+
 const MapaEstados = dynamic(
   () => import("@/components/home/mapa-estados").then((modulo) => modulo.MapaEstados),
-  {
-    loading: () => (
-      <section className="card mapa-carregando" aria-busy="true" aria-label="Carregando mapa">
-        <div className="skeleton mapa-skeleton" aria-hidden="true" />
-      </section>
-    ),
-  },
+  { loading: () => <MapaCarregando /> },
 );
 
+/** O mapa (pesado) só é baixado quando chega perto da tela. */
 export function MapaLazy() {
   const ref = useRef<HTMLDivElement>(null);
   const [visivel, setVisivel] = useState(false);
@@ -40,15 +46,5 @@ export function MapaLazy() {
     return () => observador.disconnect();
   }, []);
 
-  return (
-    <div ref={ref}>
-      {visivel ? (
-        <MapaEstados />
-      ) : (
-        <section className="card mapa-carregando" aria-busy="true" aria-label="Mapa carregando">
-          <div className="skeleton mapa-skeleton" aria-hidden="true" />
-        </section>
-      )}
-    </div>
-  );
+  return <div ref={ref}>{visivel ? <MapaEstados /> : <MapaCarregando />}</div>;
 }
